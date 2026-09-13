@@ -1,13 +1,11 @@
 # ---- 构建产物 ----
 build/
-dist/
 out/
 *.o
 *.obj
 *.lib
 *.a
 *.dll
-*.exe
 *.pdb
 *.ilk
 *.exp
@@ -18,9 +16,19 @@ out/
 native/driver/toolchain/
 
 # ---- Node / Electron ----
+# 浏览器内核随仓库分发（自包含启动）：node_modules/electron/dist 放行，
+# 但 180MB 的 electron.exe 超 GitHub 单文件 100MB 限制，改存
+# electron/vendor/electron.exe.zip，start.bat 首次启动自动解压。
 node_modules/
 electron/dist/
 *.log
+!electron/node_modules/
+electron/node_modules/*
+!electron/node_modules/electron/
+!electron/node_modules/electron/dist/
+!electron/node_modules/electron/dist/**
+electron/node_modules/electron/dist/electron.exe
+!electron/vendor/electron.exe.zip
 
 # ---- Python ----
 __pycache__/
@@ -39,9 +47,26 @@ python/data/
 # ---- DSH 工作台工具自身运行目录（不入库） ----
 .dsh-vision-router/
 
-# ---- 运行时环境（开发机自带，不入库） ----
+# ---- 运行时环境（便携 python/node 随仓库分发，自包含启动） ----
 runtime/*
 !runtime/README.md
+!runtime/python/
+!runtime/node/
+runtime/python/**
+!runtime/python/python.exe
+!runtime/python/pythonw.exe
+!runtime/python/python3.dll
+!runtime/python/python311.dll
+!runtime/python/vcruntime140.dll
+!runtime/python/vcruntime140_1.dll
+!runtime/python/DLLs/
+!runtime/python/DLLs/**
+!runtime/python/Lib/
+!runtime/python/Lib/**
+!runtime/python/Scripts/
+!runtime/python/Scripts/**
+!runtime/node/**
+!runtime/node/node.exe
 
 # ---- 编辑器 / 系统 ----
 .idea/
