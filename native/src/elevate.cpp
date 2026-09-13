@@ -9,6 +9,8 @@
 
 #include <wchar.h>
 
+#include "native.h"
+
 /* 当前进程是否持有提升（管理员）令牌 */
 int native_is_elevated(void) {
     HANDLE token = nullptr;

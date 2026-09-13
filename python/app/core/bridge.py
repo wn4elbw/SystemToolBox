@@ -494,11 +494,16 @@ class NativeBridge:
     # ---------- 通用调用 ----------
 
     def _json_call(self, fn, *args):
-        buf = ctypes.create_string_buffer(1 << 16)
-        rc = fn(buf, len(buf), *args)
-        if rc < 0:
-            raise BridgeError(f"native 调用失败 rc={rc}")
-        return json.loads(buf.value.decode("utf-8"))
+        size = 1 << 16
+        for _ in range(4):   # 最多扩容 3 次（64K -> 1M）
+            buf = ctypes.create_string_buffer(size)
+            rc = fn(buf, size, *args)
+            if rc < 0:
+                raise BridgeError(f"native 调用失败 rc={rc}")
+            if rc <= size:
+                return json.loads(buf.value.decode("utf-8"))
+            size = max(size * 4, rc + 1)   # 不足则按 need 扩容重试
+        raise BridgeError("native 返回数据过大，多次扩容仍不足")
 
     def sysinfo(self) -> dict:
         if not self.available:

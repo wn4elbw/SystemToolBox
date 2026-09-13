@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "native.h"
 #include "json_out.h"
 
 namespace {
@@ -54,7 +55,8 @@ SC_HANDLE open_service(SC_HANDLE scm, const wchar_t* name, bool write) {
     return h;
 }
 
-/* 服务状态 -> JSON 对象（不含 name 字段） */
+/* 服务状态 -> JSON 对象（不含 name 字段；startType 由调用方用
+ * QUERY_SERVICE_CONFIG 提供，SERVICE_STATUS_PROCESS 无该字段） */
 void status_json(std::string& out, SC_HANDLE h) {
     SERVICE_STATUS_PROCESS ss;
     DWORD needed = 0;
@@ -66,8 +68,6 @@ void status_json(std::string& out, SC_HANDLE h) {
     }
     out += "{\"state\":";
     nj::put_string(out, svc_state_str(ss.dwCurrentState));
-    out += ",\"startType\":";
-    nj::put_string(out, start_type_str(ss.dwServiceStartType));
     out += ",\"pid\":";
     out += std::to_string(ss.dwProcessId);
     out += "}";
@@ -127,6 +127,26 @@ int write_status_for(const wchar_t* name, char* buf, size_t len,
 
 }  // namespace
 
+/* 查询服务配置的启动类型；失败返回 "unknown" */
+std::wstring query_start_type(SC_HANDLE scm, const wchar_t* name) {
+    SC_HANDLE h = open_service(scm, name, false);
+    if (!h) return L"unknown";
+    QUERY_SERVICE_CONFIGW* cfg = nullptr;
+    DWORD need = 0;
+    QueryServiceConfigW(h, cfg, 0, &need);
+    if (need > 0) {
+        cfg = reinterpret_cast<QUERY_SERVICE_CONFIGW*>(new BYTE[need]);
+        if (!QueryServiceConfigW(h, cfg, need, &need)) {
+            delete[] cfg;
+            cfg = nullptr;
+        }
+    }
+    std::wstring r = cfg ? start_type_str(cfg->dwStartType) : L"unknown";
+    delete[] cfg;
+    CloseServiceHandle(h);
+    return r;
+}
+
 int native_service_list(char* buf, size_t len) {
     SC_HANDLE scm = open_scm();
     if (!scm) return -1;
@@ -157,6 +177,7 @@ int native_service_list(char* buf, size_t len) {
     for (DWORD i = 0; i < servicesReturned; ++i) {
         if (i) out += ',';
         const ENUM_SERVICE_STATUS_PROCESSW& it = items[i];
+        std::wstring startType = query_start_type(scm, it.lpServiceName);
         out += "{\"name\":";
         nj::put_string(out, it.lpServiceName);
         out += ",\"display\":";
@@ -164,7 +185,7 @@ int native_service_list(char* buf, size_t len) {
         out += ",\"state\":";
         nj::put_string(out, svc_state_str(it.ServiceStatusProcess.dwCurrentState));
         out += ",\"startType\":";
-        nj::put_string(out, start_type_str(it.ServiceStatusProcess.dwServiceStartType));
+        nj::put_string(out, startType.c_str());
         out += ",\"pid\":";
         out += std::to_string(it.ServiceStatusProcess.dwProcessId);
         out += ",\"isDriver\":";

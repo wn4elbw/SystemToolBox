@@ -12,6 +12,7 @@ out/
 *.ilk
 *.exp
 *.map
+!python/native/native_core.dll
 
 # ---- 驱动交叉构建工具链（数百 MB 下载缓存，不入库） ----
 native/driver/toolchain/

@@ -228,7 +228,7 @@ int sysinfo_snapshot_to_json(const SysInfoSnapshot* s, char* buf, size_t len) {
     JsonBuf b;
     jb_init(&b, buf, len);
 
-    jb_raw(&b, "{\"cpuName\":", 12);
+    jb_raw(&b, "{\"cpuName\":", 11);
     jb_wstring(&b, s->cpuName);
     jb_printf(&b, ",\"cores\":%u,\"logicalCores\":%u,", s->cores, s->logicalCores);
     jb_printf(&b, "\"memoryTotal\":%llu,\"memoryFree\":%llu,\"memoryUsed\":%llu,",
