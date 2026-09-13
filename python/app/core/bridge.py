@@ -512,7 +512,11 @@ class NativeBridge:
         rc = self._dll.native_sysinfo_json(buf, len(buf))
         if rc < 0:
             raise BridgeError(f"native_sysinfo_json 失败 rc={rc}")
-        return json.loads(buf.value.decode("utf-8"))
+        data = json.loads(buf.value.decode("utf-8"))
+        # native C 层不采集 CPU 占用（GetSystemTimes 需两次采样差分），
+        # 由 ctypes 兜底逻辑补充，保证 DLL 与 fallback 输出一致
+        data["cpuUsage"] = _SysInfoFallback._cpu_usage()
+        return data
 
     def sysinfo_raw_json(self) -> str:
         buf = ctypes.create_string_buffer(1 << 16)
