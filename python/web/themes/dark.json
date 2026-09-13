@@ -1,0 +1,27 @@
+{
+  "id": "dark",
+  "name": "深色",
+  "colors": {
+    "bg": "#202124",
+    "bg2": "#2a2c31",
+    "card": "#26282d",
+    "border": "#000000",
+    "text": "#ffffff",
+    "dim": "#9aa0ab",
+    "accent": "#4f8cff",
+    "green": "#43d17e",
+    "amber": "#f0b34b",
+    "red": "#ef5a5a",
+    "hover1": "#2c2f34",
+    "btn": "#32353c",
+    "btn-hover": "#3a3e46",
+    "btn2": "#2a2d33",
+    "btn2-hover": "#33373e",
+    "item-hover": "#2b2e34",
+    "code-bg": "#15161a",
+    "item-bg": "#23252a",
+    "log-text": "#d4d7de",
+    "pill-bg": "rgba(0, 0, 0, .78)",
+    "pill-text": "#ffffff"
+  }
+}

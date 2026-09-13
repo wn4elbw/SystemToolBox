@@ -1,0 +1,49 @@
+# ---- 构建产物 ----
+build/
+dist/
+out/
+*.o
+*.obj
+*.lib
+*.a
+*.dll
+*.exe
+*.pdb
+*.ilk
+*.exp
+*.map
+
+# ---- 驱动交叉构建工具链（数百 MB 下载缓存，不入库） ----
+native/driver/toolchain/
+
+# ---- Node / Electron ----
+node_modules/
+electron/dist/
+*.log
+
+# ---- Python ----
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# ---- 运行期数据 ----
+python/data/
+!python/data/.gitkeep
+
+# ---- 学习/反编译资料（第三方反编译产物、驱动、证书私钥，不入库） ----
+学习/
+
+# ---- DSH 工作台工具自身运行目录（不入库） ----
+.dsh-vision-router/
+
+# ---- 运行时环境（开发机自带，不入库） ----
+runtime/*
+!runtime/README.md
+
+# ---- 编辑器 / 系统 ----
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

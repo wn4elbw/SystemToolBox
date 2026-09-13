@@ -1,0 +1,13 @@
+{
+  "id": "jiyu",
+  "name": "极域工具箱",
+  "version": "2.0.0",
+  "description": "极域电子教室工具集（合并自极域对抗器 jytrainer 与极域工具包 mythwaretoolkit）：广播窗口化/全屏化、密码读取、进程控制、驱动加载、DLL 注入、UDP 命令、SYSTEM 提权、退出黑屏、解网络/USB 限制、动态密码计算器、一键解禁、防杀/防截屏、机房助手处理",
+  "entry": "main.py",
+  "permission": "approval",
+  "sidebar": "电子教室",
+  "topbar": "jiyu",
+  "icon": "",
+  "enabled": true,
+  "requires": []
+}

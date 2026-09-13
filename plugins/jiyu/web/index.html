@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>极域工具箱</title>
+<script src="/ui/stbox.js"></script>
+<style>
+  :root { --bg:#202124; --bg2:#2a2c31; --card:#26282d; --border:#000000;
+          --text:#ffffff; --dim:#9aa0ab; --accent:#4f8cff;
+          --green:#43d17e; --amber:#f0b34b; --red:#ef5a5a;
+          --hover1:#2c2f34; --btn:#32353c; --btn-hover:#3a3e46;
+          --btn2:#2a2d33; --btn2-hover:#33373e; --item-hover:#2b2e34;
+          --code-bg:#15161a; --item-bg:#23252a; --log-text:#d4d7de;
+          --pill-bg:rgba(0,0,0,.78); --pill-text:#ffffff; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text);
+         font: 13px/1.6 "Segoe UI", "Microsoft YaHei", sans-serif;
+         transition: background .2s, color .2s; }
+  .wrap { padding: 16px 20px; max-width: 1100px; }
+  h1 { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+  .sub { color: var(--dim); font-size: 12px; margin-bottom: 16px; }
+  .tag { display: inline-block; font-size: 11px; color: var(--accent);
+         background: color-mix(in srgb, var(--accent) 12%, transparent);
+         border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+         border-radius: 5px; padding: 0 6px; margin-left: 6px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+          align-items: start; }
+  @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--border);
+          border-radius: 12px; padding: 14px 16px; }
+  .card + .card { margin-top: 14px; }
+  .card h3 { font-size: 12px; color: var(--dim); font-weight: 500;
+             margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 5px 14px;
+        font-size: 13px; }
+  .kv b { color: var(--dim); font-weight: 400; white-space: nowrap; }
+  .kv span { word-break: break-all; }
+  .ok { color: var(--green); } .warn { color: var(--amber); }
+  .bad { color: var(--red); }
+  .rows { display: flex; flex-direction: column; gap: 10px; }
+  .row { display: flex; align-items: center; justify-content: space-between;
+         gap: 10px; flex-wrap: wrap; }
+  .row label { color: var(--dim); font-size: 12px; min-width: 90px; }
+  input[type=text], input[type=number], input[type=date], select {
+    background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px 8px; font: inherit; flex: 1; min-width: 140px; }
+  input[type=date] { color-scheme: dark; }
+  button { background: color-mix(in srgb, var(--accent) 15%, transparent);
+           color: var(--text);
+           border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+           border-radius: 6px; padding: 6px 12px; font: inherit; cursor: pointer;
+           transition: background .15s; }
+  button:hover { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+  button.danger { background: color-mix(in srgb, var(--red) 15%, transparent);
+                  border-color: color-mix(in srgb, var(--red) 35%, transparent); }
+  button.danger:hover { background: color-mix(in srgb, var(--red) 30%, transparent); }
+  button.warnb { background: color-mix(in srgb, var(--amber) 15%, transparent);
+                 border-color: color-mix(in srgb, var(--amber) 35%, transparent); }
+  button.warnb:hover { background: color-mix(in srgb, var(--amber) 30%, transparent); }
+  button:disabled { opacity: .4; cursor: default; }
+  pre { background: var(--code-bg); border: 1px solid var(--border);
+        border-radius: 8px; padding: 10px; font-size: 12px;
+        max-height: 260px; overflow: auto; white-space: pre-wrap;
+        word-break: break-all; }
+  .log { font-size: 12px; color: var(--log-text); max-height: 200px;
+         overflow: auto; }
+  .log div { padding: 2px 0; border-bottom: 1px solid
+           color-mix(in srgb, var(--text) 6%, transparent); }
+  .gap { height: 10px; }
+  .mini { font-size: 11px; color: var(--dim); }
+  .rowline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  td, th { padding: 5px 8px; border-bottom: 1px solid
+         color-mix(in srgb, var(--text) 8%, transparent); text-align: left; }
+  th { color: var(--dim); font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>极域工具箱 <span class="tag">jiyu</span></h1>
+  <div class="sub">合并自 极域对抗器 + 极域工具包：广播 · 密码 · 进程 · 驱动 · 注入 · UDP · 提权 · 黑屏 · 解限制 · 计算器 · 解禁（本机/授权环境使用）</div>
+
+  <div class="cols">
+    <div class="left">
+      <div class="card"><h3>📡 极域状态</h3>
+        <div class="kv" id="kv-status"><span class="sp">加载中…</span></div>
+        <div style="margin-top:10px" class="rowline">
+          <button onclick="refreshStatus()">刷新</button>
+          <button onclick="getPassword()">读取密码</button>
+          <span class="mini" id="st-elev"></span>
+        </div>
+        <div class="gap"></div>
+        <div class="mini" id="pwd-out"></div>
+      </div>
+
+      <div class="card"><h3>🪟 广播窗口</h3>
+        <div class="kv" id="kv-bw"><span class="sp">加载中…</span></div>
+        <div class="gap"></div>
+        <div class="rowline">
+          <button onclick="rpc('broadcast.windowed', {})">强制窗口化</button>
+          <button onclick="rpc('broadcast.fullscreen', {})">强制全屏化</button>
+          <button onclick="rpc('broadcast.toggle', {})">切换模式</button>
+        </div>
+      </div>
+
+      <div class="card"><h3>⚙️ 进程控制</h3>
+        <div class="rowline">
+          <button onclick="rpc('process.kill', {})" class="danger">强杀极域</button>
+          <button onclick="rpc('process.suspend', {})" class="warnb">挂起</button>
+          <button onclick="rpc('process.resume', {})">恢复</button>
+          <button onclick="rpc('process.start', {})">启动极域</button>
+        </div>
+        <div class="gap"></div>
+        <div class="row">
+          <label>按 PID 强杀</label>
+          <input type="number" id="pk-pid" value="">
+          <button onclick="killPid()" class="danger">强杀</button>
+        </div>
+      </div>
+
+      <div class="card"><h3>🌑 退出黑屏安静</h3>
+        <div class="row">
+          <label>级别</label>
+          <select id="black-level">
+            <option value="1">1 隐藏</option>
+            <option value="2">2 最小化</option>
+            <option value="3">3 ESC</option>
+            <option value="4" selected>4 杀进程(全)</option>
+          </select>
+          <button onclick="exitBlack()" class="warnb">退出黑屏</button>
+        </div>
+      </div>
+
+      <div class="card"><h3>🔓 解限制 / 解禁</h3>
+        <div class="rowline">
+          <button onclick="rpc('unlock.network', {})">解网络限制</button>
+          <button onclick="rpc('unlock.usb', {mode:'soft'})">USB 软解禁</button>
+          <button onclick="rpc('unlock.usb', {mode:'hard'})">USB 硬解禁</button>
+          <button onclick="rpc('unlock.system', {})">一键解禁系统程序</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="card"><h3>🧩 驱动 (JiYuTrainerDriver)</h3>
+        <div class="kv" id="kv-drv"><span class="sp">加载中…</span></div>
+        <div class="gap"></div>
+        <div class="rowline">
+          <button onclick="rpc('driver.load', {})">加载驱动</button>
+          <button onclick="rpc('driver.unload', {})" class="danger">卸载驱动</button>
+        </div>
+        <div class="gap"></div>
+        <div class="row">
+          <label>驱动强杀 PID</label>
+          <input type="number" id="d-kill-pid" value="">
+          <button onclick="driverKill()">驱动强杀</button>
+        </div>
+      </div>
+
+      <div class="card"><h3>💉 DLL 注入 / SYSTEM 运行</h3>
+        <div class="row"><label>目标 PID</label>
+          <input type="number" id="inj-pid" value=""></div>
+        <div class="row"><label>DLL 路径</label>
+          <input type="text" id="inj-dll" placeholder="C:\path\hook.dll"></div>
+        <div class="rowline">
+          <button onclick="doInject()">注入</button>
+          <button onclick="doUnload()">卸载模块</button>
+          <button onclick="rpc('elevate.check', {})">检查提权</button>
+        </div>
+        <div class="gap"></div>
+        <div class="row">
+          <label>命令行</label>
+          <input type="text" id="elev-cmd" placeholder="C:\Windows\System32\cmd.exe /c whoami">
+          <button onclick="elevateSys()">SYSTEM 运行</button>
+        </div>
+      </div>
+
+      <div class="card"><h3>📤 UDP 数据包</h3>
+        <div class="row"><label>目标 IP</label>
+          <input type="text" id="udp-ip" placeholder="192.168.x.x"></div>
+        <div class="row"><label>端口</label>
+          <input type="number" id="udp-port" value="0"></div>
+        <div class="row"><label>类型</label>
+          <select id="udp-kind">
+            <option value="text">发送文本</option>
+            <option value="cmd">执行命令</option>
+            <option value="reboot">重启</option>
+            <option value="shutdown">关机</option>
+          </select></div>
+        <div class="row"><label>内容</label>
+          <input type="text" id="udp-payload" placeholder="消息或命令路径"></div>
+        <div class="rowline">
+          <button onclick="udpSend()" class="warnb">发送</button>
+          <button onclick="udpPackets()">查看数据包</button>
+        </div>
+      </div>
+
+      <div class="card"><h3>🛡 保护</h3>
+        <div class="rowline">
+          <button onclick="rpc('protect.self', {})">防杀本进程 (ACL DENY)</button>
+        </div>
+        <div class="gap"></div>
+        <div class="row">
+          <label>窗口 HWND</label>
+          <input type="number" id="scr-hwnd" value="">
+          <button onclick="scrShot(true)">防截屏开</button>
+          <button onclick="scrShot(false)">关</button>
+        </div>
+      </div>
+
+      <div class="card"><h3>🧮 动态密码计算器</h3>
+        <div class="row"><label>日期</label>
+          <input type="date" id="psd-date"></div>
+        <div class="row"><label>计算机名</label>
+          <input type="text" id="psd-name" placeholder="留空自动"></div>
+        <div class="rowline">
+          <button onclick="calcPsd()">计算</button>
+          <button onclick="rpc('assistant.kill', {})" class="danger">杀机房助手</button>
+        </div>
+        <div class="gap"></div>
+        <table id="psd-tbl">
+          <thead><tr><th>版本</th><th>临时密码</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px"><h3>📋 输出日志</h3>
+    <div class="log" id="log"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  const PID = "jiyu";
+  const $ = (id) => document.getElementById(id);
+  const logHost = $("log");
+
+  function log(msg, cls) {
+    const d = document.createElement("div");
+    d.textContent = new Date().toLocaleTimeString() + "  " + msg;
+    if (cls) d.style.color = "var(--" + (cls === "err" ? "red" : cls) + ")";
+    logHost.insertBefore(d, logHost.firstChild);
+    while (logHost.children.length > 100) logHost.lastChild.remove();
+  }
+
+  async function call(api, args, opts) {
+    opts = opts || {};
+    try {
+      const r = await stbox.rpc(PID, api, args || {});
+      if (r.ok) { if (!opts.silent) log(api + " 成功", "green"); return r.data; }
+      if (r.error && r.error.code === "approval_required") {
+        log("「" + api + "」需要审批…", "warn");
+        const r2 = await stbox.rpcWithApproval(PID, api, args || {});
+        if (r2.ok) { log(api + " 已授权并执行", "green"); return r2.data; }
+      }
+      log(api + " 失败: " + (r.error ? r.error.message : "未知"), "err");
+      return null;
+    } catch (e) {
+      log(api + " 异常: " + e.message, "err");
+      return null;
+    }
+  }
+
+  window.rpc = async (api, args) => { await call(api, args); refreshStatus(); };
+  window.refreshStatus = refreshStatus;
+  window.getPassword = getPassword;
+  window.killPid = killPid;
+  window.driverKill = driverKill;
+  window.doInject = doInject;
+  window.doUnload = doUnload;
+  window.elevateSys = elevateSys;
+  window.udpSend = udpSend;
+  window.udpPackets = udpPackets;
+  window.exitBlack = exitBlack;
+  window.scrShot = scrShot;
+  window.calcPsd = calcPsd;
+
+  function kv(host, pairs) {
+    host.innerHTML = "";
+    pairs.forEach(([k, v, cls]) => {
+      host.appendChild(stbox.el("b", { text: k }));
+      const s = stbox.el("span", { text: v == null ? "-" : String(v) });
+      if (cls) s.style.color = "var(--" + cls + ")";
+      host.appendChild(s);
+    });
+  }
+
+  function stripTags(s) {
+    const div = document.createElement("div");
+    div.innerHTML = s;
+    return div.textContent;
+  }
+
+  async function refreshStatus() {
+    const d = await call("status", {}, { silent: true });
+    if (!d) return;
+    const sm = d.studentMain || {};
+    const bw = sm.broadcastWindow;
+    kv($("kv-status"), [
+      ["极域进程", sm.running
+        ? '<span class="ok">运行中</span>（' + sm.processName + " PID:" +
+          sm.pid + "）" : '<span class="bad">未运行</span>'],
+      ["版本", d.version || sm.version || "-"],
+      ["广播窗口", bw ? bw.text + " (hwnd:" + bw.hwnd + ")" : "未找到"],
+      ["密码可读", d.passwordAvailable ? '<span class="ok">是</span>'
+                                      : '<span class="bad">否</span>'],
+      ["SYSTEM 令牌", d.systemTokenAvailable
+        ? '<span class="ok">可用</span>' : '<span class="bad">不可用</span>'],
+      ["当前权限", d.elevated ? '<span class="ok">管理员</span>'
+                              : '<span class="warn">普通权限</span>'],
+    ].map(([k, v, c]) => [k, stripTags(v), c]));
+    $("st-elev").textContent = d.elevated ? "✓ 已提权" : "⚠ 建议以管理员运行";
+
+    kv($("kv-bw"), [
+      ["广播窗口数", (d.broadcastWindows || []).length],
+      ["状态", d.driver && d.driver.loaded ? '<span class="ok">驱动已加载</span>'
+                                           : '<span class="bad">驱动未加载</span>'],
+    ].map(([k, v, c]) => [k, stripTags(v), c]));
+
+    kv($("kv-drv"), [
+      ["状态", d.driver && d.driver.loaded ? '<span class="ok">已加载</span>'
+                                           : '<span class="bad">未加载</span>'],
+      ["服务", d.driver ? d.driver.serviceName : "-"],
+      ["设备", d.driver ? d.driver.device : "-"],
+      ["限制", "仅 32 位系统"],
+    ].map(([k, v, c]) => [k, stripTags(v), c]));
+  }
+
+  async function getPassword() {
+    const r = await stbox.rpc(PID, "password", {});
+    if (r.ok) {
+      $("pwd-out").textContent = "密码: " + r.data.password;
+      log("读取密码成功: " + r.data.password, "green");
+    } else {
+      $("pwd-out").textContent = r.error ? r.error.message : "失败";
+    }
+  }
+
+  async function killPid() {
+    const pid = parseInt($("pk-pid").value, 10);
+    if (!pid) { log("请输入 PID", "err"); return; }
+    const r = await call("process.kill_pid", { pid: pid });
+    if (r) log("强杀 PID " + pid, r.ok ? "green" : "err");
+  }
+
+  async function driverKill() {
+    const pid = parseInt($("d-kill-pid").value, 10);
+    if (!pid) { log("请输入 PID", "err"); return; }
+    const r = await call("driver.force_kill", { pid: pid });
+    if (r) log("驱动强杀 PID " + pid + " status=" + r.statusHex,
+               r.ok ? "green" : "err");
+  }
+
+  async function doInject() {
+    const pid = parseInt($("inj-pid").value, 10);
+    const dll = $("inj-dll").value.trim();
+    if (!pid || !dll) { log("请输入 PID 与 DLL 路径", "err"); return; }
+    const r = await call("inject.dll", { pid: pid, dll: dll });
+    if (r) log(r.message, r.ok ? "green" : "err");
+  }
+
+  async function doUnload() {
+    const pid = parseInt($("inj-pid").value, 10);
+    const dll = $("inj-dll").value.trim();
+    if (!pid || !dll) { log("请输入 PID 与模块名", "err"); return; }
+    const r = await call("inject.unload",
+                         { pid: pid, module: dll.split("\\").pop() });
+    if (r) log(r.message, r.ok ? "green" : "err");
+  }
+
+  async function elevateSys() {
+    const cmd = $("elev-cmd").value.trim();
+    if (!cmd) { log("请输入命令行", "err"); return; }
+    const r = await call("elevate.system", { cmd: cmd });
+    if (r) log("SYSTEM 进程 pid=" + r.pid, r.ok ? "green" : "err");
+  }
+
+  async function udpSend() {
+    const ip = $("udp-ip").value.trim();
+    const port = parseInt($("udp-port").value, 10);
+    const kind = $("udp-kind").value;
+    const payload = $("udp-payload").value;
+    if (!ip || !port) { log("请输入 IP 与端口", "err"); return; }
+    if ((kind === "text" || kind === "cmd") && !payload) {
+      log("请输入内容", "err"); return;
+    }
+    if (kind === "shutdown" || kind === "reboot") {
+      if (!confirm("确认向 " + ip + ":" + port + " 发送「" + kind +
+                   "」数据包？")) return;
+    }
+    const r = await call("udp.send", { ip, port, kind, payload });
+    if (r) log("发送结果: " + JSON.stringify(r), r.ok ? "green" : "err");
+  }
+
+  async function udpPackets() {
+    const r = await stbox.rpc(PID, "udp.packets", {});
+    if (r.ok) {
+      log("数据包: 4 种 × " + r.data.packSize + "B，缓冲 " +
+          r.data.bufferSize + "B");
+      for (let i = 0; i < r.data.packets.length; i++) {
+        log("pack[" + i + "] = " + r.data.packets[i].slice(0, 8)
+            .map((x) => x.toString(16).padStart(2, "0")).join(" ") + "…");
+      }
+    }
+  }
+
+  async function exitBlack() {
+    const level = parseInt($("black-level").value, 10);
+    const r = await call("exit_black_screen", { level: level });
+    if (r) log(r.message, r.ok ? "green" : "warn");
+  }
+
+  async function scrShot(enable) {
+    const hwnd = parseInt($("scr-hwnd").value, 10);
+    if (!hwnd) { log("请输入 HWND", "err"); return; }
+    const r = await call("protect.screenshot", { hwnd: hwnd, enable: enable });
+    if (r) log("防截屏 " + (enable ? "开" : "关") + " -> " + r.ok,
+               r.ok ? "green" : "err");
+  }
+
+  async function calcPsd() {
+    const d = $("psd-date").value;
+    if (!d) { log("请选择日期", "err"); return; }
+    const [year, month, day] = d.split("-").map(Number);
+    const name = $("psd-name").value.trim();
+    const r = await stbox.rpc(PID, "psd.calc",
+                              { year, month, day, computerName: name });
+    if (!r.ok) { log(r.error ? r.error.message : "失败", "err"); return; }
+    const tb = document.querySelector("#psd-tbl tbody");
+    tb.innerHTML = "";
+    for (const k of Object.keys(r.data)) {
+      const tr = stbox.el("tr", {}, [
+        stbox.el("td", { text: k }),
+        stbox.el("td", { text: r.data[k] }),
+      ]);
+      tb.appendChild(tr);
+    }
+    log("密码计算完成", "green");
+  }
+
+  refreshStatus();
+  setInterval(() => call("status", {}, { silent: true }).then(
+    (d) => { if (!d) return;
+      $("st-elev").textContent = d.elevated ? "✓ 管理员" : "⚠ 普通权限"; }),
+    5000);
+})();
+</script>
+</body>
+</html>

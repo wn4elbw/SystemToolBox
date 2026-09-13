@@ -1,0 +1,13 @@
+{
+  "id": "ftp-server",
+  "name": "FTP服务器",
+  "version": "1.0.0",
+  "description": "内置轻量 FTP 服务器（纯标准库实现）：可配置端口、账户、根目录、匿名访问，PASV/EPSV 被动模式，支持浏览/上传/下载/删除/重命名/续传",
+  "entry": "main.py",
+  "permission": "approval",
+  "sidebar": "网络",
+  "topbar": "ftp-server",
+  "icon": "",
+  "enabled": true,
+  "requires": []
+}

@@ -1,0 +1,27 @@
+{
+  "id": "light",
+  "name": "浅色",
+  "colors": {
+    "bg": "#ffffff",
+    "bg2": "#f6f7f9",
+    "card": "#ffffff",
+    "border": "#cfd4dc",
+    "text": "#1a1d21",
+    "dim": "#6b7280",
+    "accent": "#3b77e8",
+    "green": "#2f9e63",
+    "amber": "#c98a1b",
+    "red": "#d64545",
+    "hover1": "#eef0f3",
+    "btn": "#eef0f3",
+    "btn-hover": "#e3e6eb",
+    "btn2": "#f2f4f7",
+    "btn2-hover": "#e7eaf0",
+    "item-hover": "#eef0f3",
+    "code-bg": "#f4f6fa",
+    "item-bg": "#f1f3f7",
+    "log-text": "#374151",
+    "pill-bg": "rgba(255, 255, 255, .9)",
+    "pill-text": "#374151"
+  }
+}

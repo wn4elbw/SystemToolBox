@@ -1,0 +1,13 @@
+{
+  "id": "procman",
+  "name": "进程管理",
+  "version": "1.0.0",
+  "description": "进程管理：实时枚举（含路径/内存/父进程）、结束进程、挂起/恢复、启动新进程；结束/挂起等操作需审批",
+  "entry": "main.py",
+  "permission": "approval",
+  "sidebar": "系统",
+  "topbar": "procman",
+  "icon": "",
+  "enabled": true,
+  "requires": []
+}

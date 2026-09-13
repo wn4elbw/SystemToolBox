@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>希沃反制</title>
+<script src="/ui/stbox.js"></script>
+<style>
+  :root { --bg:#202124; --bg2:#2a2c31; --card:#26282d; --border:#000000;
+          --text:#ffffff; --dim:#9aa0ab; --accent:#4f8cff;
+          --green:#43d17e; --amber:#f0b34b; --red:#ef5a5a;
+          --hover1:#2c2f34; --btn:#32353c; --btn-hover:#3a3e46;
+          --btn2:#2a2d33; --btn2-hover:#33373e; --item-hover:#2b2e34;
+          --code-bg:#15161a; --item-bg:#23252a; --log-text:#d4d7de;
+          --pill-bg:rgba(0,0,0,.78); --pill-text:#ffffff; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text);
+         font: 13px/1.6 "Segoe UI", "Microsoft YaHei", sans-serif;
+         transition: background .2s, color .2s; }
+  .wrap { padding: 16px 20px; max-width: 1100px; }
+  h1 { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+  .sub { color: var(--dim); font-size: 12px; margin-bottom: 16px; }
+  .tag { display: inline-block; font-size: 11px; color: var(--accent);
+         background: color-mix(in srgb, var(--accent) 12%, transparent);
+         border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+         border-radius: 5px; padding: 0 6px; margin-left: 6px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+          align-items: start; }
+  @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--border);
+          border-radius: 12px; padding: 14px 16px; }
+  .card + .card { margin-top: 14px; }
+  .card h3 { font-size: 12px; color: var(--dim); font-weight: 500;
+             margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 5px 14px;
+        font-size: 13px; }
+  .kv b { color: var(--dim); font-weight: 400; white-space: nowrap; }
+  .kv span { word-break: break-all; }
+  .ok { color: var(--green); } .warn { color: var(--amber); }
+  .bad { color: var(--red); }
+  .rows { display: flex; flex-direction: column; gap: 10px; }
+  .row { display: flex; align-items: center; justify-content: space-between;
+         gap: 10px; flex-wrap: wrap; }
+  .row label { color: var(--dim); font-size: 12px; min-width: 90px; }
+  input[type=number], input[type=text] {
+    background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px 8px; font: inherit; flex: 1; min-width: 120px; }
+  button { background: color-mix(in srgb, var(--accent) 15%, transparent);
+           color: var(--text);
+           border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+           border-radius: 6px; padding: 6px 12px; font: inherit; cursor: pointer;
+           transition: background .15s; }
+  button:hover { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+  button.danger { background: color-mix(in srgb, var(--red) 15%, transparent);
+                  border-color: color-mix(in srgb, var(--red) 35%, transparent); }
+  button.danger:hover { background: color-mix(in srgb, var(--red) 30%, transparent); }
+  button.warnb { background: color-mix(in srgb, var(--amber) 15%, transparent);
+                 border-color: color-mix(in srgb, var(--amber) 35%, transparent); }
+  button.warnb:hover { background: color-mix(in srgb, var(--amber) 30%, transparent); }
+  button.big { padding: 8px 16px; font-size: 13px; }
+  button:disabled { opacity: .4; cursor: default; }
+  .rowline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  pre { background: var(--code-bg); border: 1px solid var(--border);
+        border-radius: 8px; padding: 10px; font-size: 12px;
+        max-height: 240px; overflow: auto; white-space: pre-wrap;
+        word-break: break-all; }
+  .log { font-size: 12px; color: var(--log-text); max-height: 200px;
+         overflow: auto; }
+  .log div { padding: 2px 0; border-bottom: 1px solid
+           color-mix(in srgb, var(--text) 6%, transparent); }
+  .gap { height: 10px; }
+  .mini { font-size: 11px; color: var(--dim); }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  td, th { padding: 4px 8px; border-bottom: 1px solid
+         color-mix(in srgb, var(--text) 8%, transparent); text-align: left; }
+  th { color: var(--dim); font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>希沃反制 <span class="tag">antiseewo</span></h1>
+  <div class="sub">基于「学习\反编译」静态报告：黑屏 · 广播 · 键鼠/网络/USB/HTTPS审计 · 证书 · 安全模式 · 防火墙 · 剪贴板 · 进程树全停 · 一键全解（本机操作，仅限授权环境）</div>
+
+  <div class="cols">
+    <div class="left">
+      <div class="card"><h3>📡 希沃状态</h3>
+        <div class="kv" id="kv-status"><span class="sp">加载中…</span></div>
+        <div class="gap"></div>
+        <div class="rowline">
+          <button onclick="refresh()">刷新</button>
+          <button onclick="getPassword()">读取卸载密码</button>
+          <button onclick="rpc('processes', {})">进程列表</button>
+          <span class="mini" id="st-elev"></span>
+        </div>
+        <div class="gap"></div>
+        <pre id="pre-pass" style="max-height:120px">密码/配置：点击「读取卸载密码」</pre>
+      </div>
+
+      <div class="card"><h3>🌑 黑屏</h3>
+        <div class="kv" id="kv-black"><span class="sp">加载中…</span></div>
+        <div class="gap"></div>
+        <div class="rowline">
+          <button onclick="rpc('black.exit', {})" class="warnb big">退出黑屏</button>
+          <button onclick="rpc('screen.restore', {})">恢复被隐藏窗口</button>
+        </div>
+      </div>
+
+      <div class="card"><h3>🪟 广播窗口</h3>
+        <div class="kv" id="kv-bcast"><span class="sp">加载中…</span></div>
+        <div class="gap"></div>
+        <div class="rowline">
+          <button onclick="rpc('broadcast.windowed', {})">强制窗口化</button>
+          <button onclick="rpc('broadcast.fullscreen', {})">强制全屏化</button>
+          <button onclick="rpc('broadcast.toggle', {})">切换模式</button>
+        </div>
+      </div>
+
+      <div class="card"><h3>🔓 解除限制</h3>
+        <div class="rowline">
+          <button onclick="rpc('unlock.network', {})">解网络</button>
+          <button onclick="rpc('unlock.usb', {})">解 USB</button>
+          <button onclick="rpc('unlock.input', {})">解键鼠</button>
+          <button onclick="rpc('unlock.https', {})">HTTPS 审计</button>
+        </div>
+        <div class="gap"></div>
+        <div class="rowline">
+          <button onclick="rpc('unlock.all', {})" class="danger big">🚀 一键全解</button>
+          <span class="mini">进程树 + 全部驱动 + 网络/USB/键鼠 + HTTPS + 防火墙 + 安全模式</span>
+        </div>
+      </div>
+
+      <div class="card"><h3>🛡 保护</h3>
+        <div class="rowline">
+          <button onclick="rpc('protect.self', {})">防杀本进程 (ACL DENY)</button>
+        </div>
+        <div class="gap"></div>
+        <div class="row">
+          <label>窗口 HWND</label>
+          <input type="number" id="scr-hwnd" value="">
+          <button onclick="scrBlock()">防截屏</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="card"><h3>🧩 驱动与服务</h3>
+        <table id="tbl-svc">
+          <thead><tr><th>服务</th><th>状态</th><th>说明</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="gap"></div>
+        <div class="kv" id="kv-dev"><span class="sp">加载中…</span></div>
+      </div>
+
+      <div class="card"><h3>🗑 持久化</h3>
+        <div class="kv" id="kv-persist"><span class="sp">加载中…</span></div>
+        <div class="gap"></div>
+        <div class="rowline">
+          <button onclick="rpc('persistence.list', {})">定位自启</button>
+          <button onclick="rpc('persistence.clean', {})" class="warnb">清理自启+停服务</button>
+          <button onclick="rpc('process.kill_all', {})" class="danger">进程树全停</button>
+        </div>
+      </div>
+
+      <div class="card"><h3>🧹 系统残留清理</h3>
+        <div class="rowline">
+          <button onclick="rpc('safeboot.restore', {})">恢复安全模式</button>
+          <button onclick="rpc('firewall.clean', {})">清理防火墙规则</button>
+          <button onclick="rpc('clipboard.stop', {})">停剪贴板监控</button>
+        </div>
+        <div class="gap"></div>
+        <div class="row">
+          <label>卸载密码</label>
+          <button onclick="getPassword()">读取</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px"><h3>📋 输出日志</h3>
+    <div class="log" id="log"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  const PID = "antiseewo";
+  const $ = (id) => document.getElementById(id);
+  const logHost = $("log");
+
+  function log(msg, cls) {
+    const d = document.createElement("div");
+    d.textContent = new Date().toLocaleTimeString() + "  " + msg;
+    if (cls) d.style.color = "var(--" + (cls === "err" ? "red" : cls) + ")";
+    logHost.insertBefore(d, logHost.firstChild);
+    while (logHost.children.length > 100) logHost.lastChild.remove();
+  }
+
+  async function call(api, args, opts) {
+    opts = opts || {};
+    try {
+      const r = await stbox.rpc(PID, api, args || {});
+      if (r.ok) { if (!opts.silent) log(api + " 成功", "green"); return r.data; }
+      if (r.error && r.error.code === "approval_required") {
+        log("「" + api + "」需要审批…", "warn");
+        const r2 = await stbox.rpcWithApproval(PID, api, args || {});
+        if (r2.ok) { log(api + " 已授权并执行", "green"); return r2.data; }
+      }
+      log(api + " 失败: " + (r.error ? r.error.message : "未知"), "err");
+      return null;
+    } catch (e) {
+      log(api + " 异常: " + e.message, "err");
+      return null;
+    }
+  }
+
+  window.rpc = async (api, args) => { await call(api, args); refresh(); };
+  window.refresh = refresh;
+  window.getPassword = getPassword;
+  window.scrBlock = scrBlock;
+
+  function kv(host, pairs) {
+    host.innerHTML = "";
+    pairs.forEach(([k, v, cls]) => {
+      host.appendChild(stbox.el("b", { text: k }));
+      const s = stbox.el("span", { text: v == null ? "-" : String(v) });
+      if (cls) s.style.color = "var(--" + cls + ")";
+      host.appendChild(s);
+    });
+  }
+
+  function stateCls(st) {
+    return st === "RUNNING" ? "ok" : st === "STOPPED" ? "warn" : "dim";
+  }
+
+  function renderSteps(prefix, data) {
+    if (!data) return;
+    const steps = data.steps || [];
+    log(prefix + " 共 " + steps.length + " 步", "warn");
+    steps.forEach((s) => {
+      log("  - " + s.step + (s.ok ? " ✔" : " ✘") +
+          (s.message ? "  (" + s.message + ")" : ""),
+          s.ok ? "green" : "err");
+    });
+  }
+
+  async function refresh() {
+    const d = await call("status", {}, { silent: true });
+    if (!d) return;
+    const procs = d.processes || [];
+    const running = procs.filter((p) => p.pid > 0);
+    kv($("kv-status"), [
+      ["当前权限", d.elevated ? '<span class="ok">管理员</span>'
+                              : '<span class="warn">普通权限</span>'],
+      ["希沃进程", running.length ? running.map((p) =>
+        p.name + "#" + p.pid).join(" ") : '<span class="ok">无</span>'],
+      ["黑屏", d.blackScreen ? '<span class="bad">是</span>'
+                             : '<span class="ok">否</span>'],
+      ["广播窗口", (d.broadcastWindows || []).length],
+      ["持久化", (d.persistence && d.persistence.runKeys || []).length
+          ? '<span class="bad">发现 ' +
+            d.persistence.runKeys.length + ' 处</span>'
+          : '<span class="ok">无</span>'],
+    ].map(([k, v, c]) => [k, v.replace(/<[^>]+>/g, ""), c]));
+    $("st-elev").textContent = d.elevated ? "✓ 已提权" : "⚠ 建议以管理员运行";
+
+    kv($("kv-black"), [
+      ["检测结果", d.blackScreen ? '<span class="bad">检测到黑屏</span>'
+                                 : '<span class="ok">未检测到</span>'],
+      ["说明", "窗口级检测；硬件黑屏(背光)由 GPIO 驱动控制"],
+    ].map(([k, v, c]) => [k, v.replace(/<[^>]+>/g, ""), c]));
+
+    const bws = d.broadcastWindows || [];
+    kv($("kv-bcast"), [
+      ["数量", bws.length],
+      ["列表", bws.length ? bws.slice(0, 4).map((b) =>
+        b.text + "(" + b.hwnd + ")").join(" / ") : "-"],
+    ]);
+
+    // 服务表
+    const tbody = document.querySelector("#tbl-svc tbody");
+    tbody.innerHTML = "";
+    const svcs = d.services || {};
+    Object.keys(svcs).forEach((name) => {
+      const s = svcs[name];
+      const tr = stbox.el("tr", {}, [
+        stbox.el("td", { text: name }),
+        stbox.el("td", { text: s.state, style: "color:var(--" +
+                 stateCls(s.state) + ")" }),
+        stbox.el("td", { text: s.desc || "" }),
+      ]);
+      tbody.appendChild(tr);
+    });
+
+    const dev = d.driverDeviceOpen || {};
+    kv($("kv-dev"), [
+      ["kbhacker 设备", dev.kbhacker ? '<span class="bad">可打开</span>'
+                                     : '<span class="ok">未暴露</span>'],
+      ["MINIHACK 设备", dev.minihack ? '<span class="bad">可打开</span>'
+                                     : '<span class="ok">未暴露</span>'],
+      ["SWSkyNet 设备", dev.skynet ? '<span class="bad">可打开</span>'
+                                   : '<span class="ok">未暴露</span>'],
+    ].map(([k, v, c]) => [k, v.replace(/<[^>]+>/g, ""), c]));
+
+    const persist = d.persistence || {};
+    const runs = persist.runKeys || [];
+    kv($("kv-persist"), [
+      ["Run 自启", runs.length ? runs.map((r) => r.name).join(", ")
+                               : '<span class="ok">无</span>'],
+      ["服务", (persist.services ? Object.keys(persist.services) : [])
+          .filter((n) => persist.services[n].present).join(", ") || "无"],
+    ].map(([k, v, c]) => [k, v.replace(/<[^>]+>/g, ""), c]));
+  }
+
+  async function scrBlock() {
+    const hwnd = parseInt($("scr-hwnd").value, 10);
+    if (!hwnd) { log("请输入 HWND", "err"); return; }
+    const r = await call("screenshot.block", { hwnd: hwnd });
+    if (r) log("防截屏(hwnd=" + hwnd + ") -> " + r.ok, r.ok ? "green" : "err");
+  }
+
+  async function getPassword() {
+    const r = await stbox.rpc(PID, "password", {});
+    if (r.ok) {
+      $("pre-pass").textContent = JSON.stringify(r.data, null, 2);
+      log("读取密码/配置完成 (" + r.data.count + " 项)", "green");
+    } else {
+      $("pre-pass").textContent = r.error ? r.error.message : "失败";
+    }
+  }
+
+  // 需要展示步骤结果的管理接口包装
+  ["black.exit", "unlock.network", "unlock.https", "unlock.all",
+   "persistence.clean", "process.kill_all", "firewall.clean"].forEach((name) => {
+    const btn = document.querySelector('[onclick*="' + name + '"]');
+    if (btn) btn.addEventListener("click", async () => {
+      const r = await call(name, {});
+      renderSteps(name, r);
+      refresh();
+    });
+  });
+
+  refresh();
+  setInterval(() => call("status", {}, { silent: true }).then(
+    (d) => { if (!d) return;
+      $("st-elev").textContent = d.elevated ? "✓ 管理员" : "⚠ 普通权限"; }),
+    5000);
+})();
+</script>
+</body>
+</html>

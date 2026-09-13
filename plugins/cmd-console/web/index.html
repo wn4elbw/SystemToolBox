@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>CMD命令行</title>
+<script src="/ui/stbox.js"></script>
+<style>
+  :root { --bg:#202124; --bg2:#2a2c31; --card:#26282d; --border:#000000;
+          --text:#ffffff; --dim:#9aa0ab; --accent:#4f8cff;
+          --green:#43d17e; --amber:#f0b34b; --red:#ef5a5a;
+          --hover1:#2c2f34; --btn:#32353c; --btn-hover:#3a3e46;
+          --btn2:#2a2d33; --btn2-hover:#33373e; --item-hover:#2b2e34;
+          --code-bg:#15161a; --item-bg:#23252a; --log-text:#d4d7de;
+          --pill-bg:rgba(0,0,0,.78); --pill-text:#ffffff; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text);
+         font:13px/1.6 "Segoe UI","Microsoft YaHei",sans-serif;
+         transition:background .2s,color .2s; }
+  .wrap { padding:14px 18px; height:100vh; display:flex; flex-direction:column; }
+  h1 { font-size:17px; font-weight:600; margin-bottom:2px; }
+  .sub { color:var(--dim); font-size:12px; margin-bottom:10px; }
+  .bar { display:flex; gap:8px; align-items:center; margin-bottom:10px; flex-wrap:wrap; }
+  .pill { display:inline-block; font-size:11px; padding:1px 8px; border-radius:99px; }
+  .on { background:color-mix(in srgb, var(--green) 15%, transparent);
+        color:var(--green); border:1px solid color-mix(in srgb, var(--green) 40%, transparent); }
+  .off { background:color-mix(in srgb, var(--dim) 12%, transparent);
+         color:var(--dim); border:1px solid color-mix(in srgb, var(--dim) 30%, transparent); }
+  button { border:0; border-radius:8px; padding:6px 14px; font:inherit; cursor:pointer;
+           color:#fff; background:var(--accent); transition:filter .15s; }
+  button:hover { filter:brightness(1.12); }
+  button:disabled { opacity:.45; cursor:not-allowed; filter:none; }
+  button.sec { background:var(--btn2); color:var(--text); border:1px solid var(--border); }
+  button.sec:hover { background:var(--btn2-hover); filter:none; }
+  button.danger { background:color-mix(in srgb, var(--red) 22%, transparent);
+                  color:var(--red); }
+  button.danger:hover { background:color-mix(in srgb, var(--red) 32%, transparent); filter:none; }
+  .term { flex:1; display:flex; flex-direction:column; background:var(--code-bg);
+          border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+  .out { flex:1; overflow:auto; padding:12px 14px;
+         font-family:Consolas,"Cascadia Mono","Courier New",monospace;
+         font-size:12.5px; line-height:1.55; white-space:pre-wrap;
+         word-break:break-all; color:var(--text); }
+  .inrow { display:flex; align-items:center; gap:8px; padding:9px 12px;
+           border-top:1px solid var(--border); background:var(--bg2); }
+  .inrow .pfx { color:var(--green); font-family:Consolas,monospace; font-weight:600; }
+  .inrow input { flex:1; background:transparent; border:0; color:var(--text); outline:none;
+                 font-family:Consolas,"Cascadia Mono",monospace; font-size:13px; }
+  .inrow input::placeholder { color:var(--dim); }
+  .hint { color:var(--dim); font-size:11px; margin-top:8px; }
+  .kbd { border:1px solid var(--border); border-radius:4px; padding:0 5px;
+         background:color-mix(in srgb, var(--text) 7%, transparent); }
+  .startbox { flex:1; display:flex; flex-direction:column; align-items:center;
+              justify-content:center; gap:14px; color:var(--dim); }
+  .startbox .big { font-size:15px; color:var(--text); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>CMD 命令行</h1>
+  <div class="sub">持久 cmd.exe 会话 · 回车执行 · 快捷键 <span class="kbd">Ctrl+Alt+T</span> 聚焦</div>
+
+  <div class="bar">
+    <span id="pill"><span class="pill off">未运行</span></span>
+    <button id="btnStart">▶ 启动会话</button>
+    <button id="btnRestart" class="sec" disabled>↻ 重启</button>
+    <button id="btnKill" class="sec danger" disabled>■ 终止</button>
+    <button id="btnClear" class="sec">清屏</button>
+  </div>
+
+  <div class="term" id="termBox">
+    <div class="out" id="out"></div>
+    <div class="inrow">
+      <span class="pfx">&gt;</span>
+      <input id="cmd" placeholder="输入命令，回车执行…" autocomplete="off" spellcheck="false">
+    </div>
+  </div>
+  <div class="hint" id="hint">输出按 UTF-8/GBK 自动识别解码；中文路径命令在管道环境下可能不被 cmd 正确解析，建议使用英文路径。输入 <span class="kbd">exit</span> 将结束会话，可用「重启」恢复。</div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const PID = "cmd-console";
+  let running = false;
+
+  // 固定深色主题：不提供在线切换，样式由本文件 CSS 变量（:root）决定
+  // 宿主全局快捷键（Ctrl+Alt+T 聚焦）通过 stb-shortcut 消息转发
+  window.addEventListener("message",(e)=>{
+    if (e.data && e.data.type === "stb-shortcut") focusCmd();
+  });
+
+  // 去除 ANSI 转义，保留纯文本
+  function stripAnsi(s){
+    return String(s)
+      .replace(/\x1b\][^\x07]*(\x07|\x1b\\)/g, "")
+      .replace(/\x1b\[[0-9;?]*[ -\/]*[@-~]/g, "")
+      .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "")
+      .replace(/\x1b[()][AB0]/g, "")
+      .replace(/\x1b[@-Z\\-_]/g, "");
+  }
+
+  const out = $("out");
+  let stick = true;   // 是否跟随底部
+  out.addEventListener("scroll", ()=>{
+    stick = out.scrollTop + out.clientHeight >= out.scrollHeight - 30;
+  });
+
+  function append(text){
+    if (!text) return;
+    const wasAtBottom = stick;
+    out.textContent += text;
+    // 限制 DOM 文本长度，防止无限增长
+    if (out.textContent.length > 600000){
+      out.textContent = out.textContent.slice(-400000);
+    }
+    if (wasAtBottom) out.scrollTop = out.scrollHeight;
+  }
+
+  function setRunning(state){
+    running = state;
+    $("pill").innerHTML = state
+      ? '<span class="pill on">运行中</span>'
+      : '<span class="pill off">未运行</span>';
+    $("btnStart").disabled = state;
+    $("btnRestart").disabled = !state;
+    $("btnKill").disabled = !state;
+    $("cmd").disabled = !state;
+    if (!state){
+      $("termBox").style.display = "none";
+    } else {
+      $("termBox").style.display = "flex";
+      focusCmd();
+    }
+  }
+
+  async function poll(){
+    const r = await stbox.rpc(PID, "read");
+    if (!r.ok) return;
+    const d = r.data;
+    append(stripAnsi(d.output));
+    if (d.running !== running) setRunning(d.running);
+    if (!d.running && d.exitCode != null && d.output){
+      append("\n[会话已退出，退出码 " + d.exitCode + "]\n");
+    }
+  }
+
+  async function status(){
+    const r = await stbox.rpc(PID, "status");
+    if (!r.ok) return;
+    setRunning(r.data.running);
+    if (!r.data.running) $("termBox").style.display = "none";
+  }
+
+  async function admin(api){
+    try{
+      await stbox.rpcWithApproval(PID, api, {}, { onPending:()=>append("\n[等待权限审批…]\n") });
+    }catch(e){
+      append("\n[" + String(e.message||e) + "]\n");
+    }
+  }
+
+  async function startSess(){
+    await admin("start");
+    await status();
+    out.textContent = "";
+    stick = true;
+  }
+
+  async function send(){
+    const el = $("cmd");
+    const line = el.value.trim();
+    if (!line || !running) return;
+    el.value = "";
+    append("\n> " + line + "\n");   // 本地回显输入（cmd 输出不包含输入行）
+    try{
+      const r = await stbox.rpcWithApproval(PID, "write", { line });
+      if (!r.ok) append("\n[" + r.error.message + "]\n");
+    }catch(e){ append("\n[" + String(e.message||e) + "]\n"); }
+  }
+
+  function focusCmd(){
+    const el = $("cmd");
+    if (!running){
+      $("btnStart").focus();
+      return;
+    }
+    el.focus();
+    el.scrollIntoView({ block:"nearest" });
+  }
+
+  $("btnStart").onclick = startSess;
+  $("btnRestart").onclick = async ()=>{ await admin("restart"); await status(); out.textContent=""; };
+  $("btnKill").onclick = async ()=>{ await admin("kill"); await status(); };
+  $("btnClear").onclick = ()=>{ out.textContent = ""; };
+  $("cmd").addEventListener("keydown", (e)=>{
+    if (e.key === "Enter"){ e.preventDefault(); send(); }
+    if (e.key === "l" && e.ctrlKey){ e.preventDefault(); out.textContent = ""; }
+  });
+  $("out").addEventListener("click", focusCmd);
+  document.addEventListener("keydown", (e)=>{
+    if (e.key === "Escape"){ e.preventDefault(); focusCmd(); }
+  });
+
+  status();
+  setInterval(poll, 300);
+  setInterval(status, 3000);
+})();
+</script>
+</body>
+</html>

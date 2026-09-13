@@ -1,0 +1,15 @@
+{
+  "name": "system-toolbox",
+  "productName": "SystemToolBox",
+  "version": "0.1.0",
+  "description": "SystemToolBox — Electron + Python + C/C++ 系统工具箱",
+  "main": "src/main/index.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^33.0.0"
+  }
+}

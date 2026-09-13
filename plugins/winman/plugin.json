@@ -1,0 +1,13 @@
+{
+  "id": "winman",
+  "name": "窗口管理",
+  "version": "1.0.0",
+  "description": "窗口管理：枚举所有顶层窗口（标题/类/进程/尺寸/状态）、一键激活/最小化/最大化/还原/关闭、结束窗口所属进程",
+  "entry": "main.py",
+  "permission": "approval",
+  "sidebar": "系统",
+  "topbar": "winman",
+  "icon": "",
+  "enabled": true,
+  "requires": []
+}

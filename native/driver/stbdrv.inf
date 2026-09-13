@@ -1,0 +1,35 @@
+; stbdrv.inf — SystemToolBox 内核驱动安装信息
+; 开发机需先开启测试签名（管理员）：
+;   bcdedit /set testsigning on   （然后重启）
+; 或对 stbdrv.sys 做交叉签名（生产环境）。
+
+[Version]
+Signature   = "$WINDOWS NT$"
+Class       = System
+ClassGuid   = {4d36e97d-e325-11ce-bfc1-08002be10318}
+Provider    = %ProviderName%
+DriverVer   = 09/12/2024,0.1.0.0
+CatalogFile = stbdrv.cat
+
+[DestinationDirs]
+DefaultDestDir = 12                    ; drivers directory
+
+[DefaultInstall.NT]
+CopyFiles = DriverFiles
+
+[DriverFiles]
+stbdrv.sys = 12
+
+[DefaultInstall.NT.Services]
+AddService = STBDriver,0x00000002,STBDriver_Service_Inst
+
+[STBDriver_Service_Inst]
+DisplayName   = %ServiceName%
+ServiceType   = 1                      ; SERVICE_KERNEL_DRIVER
+StartType     = 3                      ; SERVICE_DEMAND_START
+ErrorControl  = 1                      ; SERVICE_ERROR_NORMAL
+ServiceBinary = %12%\stbdrv.sys
+
+[Strings]
+ProviderName = "SystemToolBox"
+ServiceName  = "SystemToolBox Kernel Driver"

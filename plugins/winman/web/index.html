@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>窗口管理</title>
+<script src="/ui/stbox.js"></script>
+<style>
+  :root { --bg:#202124; --bg2:#2a2c31; --card:#26282d; --border:#000000;
+          --text:#ffffff; --dim:#9aa0ab; --accent:#4f8cff;
+          --green:#43d17e; --amber:#f0b34b; --red:#ef5a5a;
+          --hover1:#2c2f34; --btn:#32353c; --btn-hover:#3a3e46;
+          --btn2:#2a2d33; --btn2-hover:#33373e; --item-hover:#2b2e34;
+          --code-bg:#15161a; --item-bg:#23252a; --log-text:#d4d7de;
+          --pill-bg:rgba(0,0,0,.78); --pill-text:#ffffff; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text);
+         font:13px/1.6 "Segoe UI","Microsoft YaHei",sans-serif;
+         transition:background .2s,color .2s; }
+  .wrap { padding:14px 18px; max-width:1200px; }
+  h1 { font-size:17px; font-weight:600; margin-bottom:2px; }
+  .sub { color:var(--dim); font-size:12px; margin-bottom:10px; }
+  .bar { display:flex; gap:8px; align-items:center; margin-bottom:12px; flex-wrap:wrap; }
+  .stats { color:var(--dim); font-size:12px; margin-left:auto; }
+  .stats b { color:var(--text); }
+  input[type=text] { background:var(--bg); color:var(--text);
+    border:1px solid var(--border); border-radius:7px; padding:6px 9px; font:inherit; }
+  input:focus { outline:none; border-color:var(--accent); }
+  input.search { width:230px; }
+  .chk { display:flex; align-items:center; gap:5px; font-size:12px; color:var(--dim);
+         cursor:pointer; user-select:none; }
+  button { border:0; border-radius:8px; padding:6px 13px; font:inherit; cursor:pointer;
+           color:#fff; background:var(--accent); transition:filter .15s; white-space:nowrap; }
+  button:hover { filter:brightness(1.12); }
+  button.sec { background:var(--btn2); color:var(--text); border:1px solid var(--border); }
+  button.sec:hover { background:var(--btn2-hover); filter:none; }
+  button.danger { background:color-mix(in srgb, var(--red) 22%, transparent); color:var(--red); }
+  button.danger:hover { background:color-mix(in srgb, var(--red) 32%, transparent); filter:none; }
+  button.small { padding:2px 8px; font-size:12px; border-radius:6px; }
+  /* ---- 磁贴网格：两列，上下对齐 ---- */
+  .grid { display:grid; grid-template-columns: 1.16fr 1fr; gap:12px; }
+  .tile { background:var(--card); border:1px solid var(--border);
+          border-radius:12px; overflow:hidden; display:flex; flex-direction:column; min-width:0; }
+  .tile-h { display:flex; align-items:center; gap:7px; padding:7px 12px;
+            border-bottom:1px solid var(--border); color:var(--dim);
+            font-size:12px; font-weight:500; }
+  .tile-h .ic { color:var(--accent); font-size:13px; }
+  .tile-h .cnt { margin-left:auto; color:var(--dim); font-weight:400; }
+  .tile-h .cnt b { color:var(--text); }
+  .tile-h button { margin-left:auto; }
+  .tile-b { padding:6px 8px; flex:1; overflow:auto; }
+  /* ---- 左侧列表 ---- */
+  .col-list .tile-b { max-height:44vh; }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  th,td { text-align:left; padding:5px 8px; border-bottom:1px solid var(--border);
+          white-space:nowrap; }
+  th { color:var(--dim); font-weight:500; font-size:12px; position:sticky; top:0;
+       background:var(--card); z-index:1; }
+  tbody tr { cursor:pointer; }
+  tbody tr:hover { background:color-mix(in srgb, var(--accent) 8%, transparent); }
+  tbody tr.sel { background:color-mix(in srgb, var(--accent) 22%, transparent);
+                 box-shadow:inset 3px 0 0 var(--accent); }
+  tbody tr.min { opacity:.68; }
+  td.num { font-variant-numeric:tabular-nums; text-align:right; }
+  td.title { max-width:250px; overflow:hidden; text-overflow:ellipsis; }
+  td.proc { max-width:150px; overflow:hidden; text-overflow:ellipsis; }
+  .badge { font-size:10px; padding:0 5px; border-radius:4px; margin-left:5px; }
+  .badge.min { background:color-mix(in srgb, var(--dim) 20%, transparent); color:var(--dim); }
+  .badge.max { background:color-mix(in srgb, var(--accent) 15%, transparent); color:var(--accent); }
+  /* ---- 右侧详情 ---- */
+  .col-detail .tile-b { padding:10px 12px; }
+  .empty-hint { color:var(--dim); padding:22px 10px; text-align:center; font-size:12.5px; }
+  .kv { display:grid; grid-template-columns: 86px 1fr; gap:3px 10px; font-size:12.5px; }
+  .kv .k { color:var(--dim); }
+  .kv .v { color:var(--text); word-break:break-all; }
+  .kv .v.mono { font-family:Consolas,monospace; font-size:12px; }
+  .act { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+  .act button { padding:7px 16px; }
+  .op-wrap { display:inline-flex; align-items:center; gap:6px;
+    border:1px solid var(--border); border-radius:8px; padding:4px 8px;
+    background:var(--bg2); }
+  .op-lbl { color:var(--dim); font-size:12px; }
+  /* ---- 日志磁贴（左列，不占整行） ---- */
+  .col-log .tile-b { max-height:19vh; padding:4px 8px; }
+  .logbox { font-size:11.8px; line-height:1.7; }
+  .logline { display:flex; gap:8px; align-items:baseline; padding:1px 2px;
+             border-bottom:1px dashed color-mix(in srgb, var(--border) 55%, transparent); }
+  .logline:last-child { border-bottom:none; }
+  .logline .t { color:var(--dim); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .logline .a { color:var(--accent); white-space:nowrap; }
+  .logline .o { color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .logline .r { margin-left:auto; color:var(--green); white-space:nowrap; }
+  .logline .r.fail { color:var(--red); }
+  .log-empty { color:var(--dim); padding:10px; text-align:center; font-size:12px; }
+  /* ---- 统计磁贴（右列） ---- */
+  .col-stats .tile-b { padding:10px 12px; }
+  .stat-row { display:flex; justify-content:space-between; padding:3px 2px;
+              font-size:12.5px; border-bottom:1px dashed
+              color-mix(in srgb, var(--border) 55%, transparent); }
+  .stat-row:last-child { border-bottom:none; }
+  .stat-row .k { color:var(--dim); }
+  .stat-row .v { color:var(--text); font-variant-numeric:tabular-nums; }
+  .stat-row .v.g { color:var(--green); }
+  .stat-row .v.a { color:var(--amber); }
+  .stat-row .v.b { color:var(--accent); }
+  .empty { color:var(--dim); padding:20px; text-align:center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>窗口管理</h1>
+  <div class="sub">点击列表选中窗口 · 操作在右侧 · 激活/最小化/最大化/还原/关闭/隐藏/显示/透明度/置顶/移动/缩放/居中/结束进程均为审批接口</div>
+
+  <div class="bar">
+    <button id="btnRefresh">↻ 刷新</button>
+    <label class="chk"><input type="checkbox" id="auto"> 自动刷新(4s)</label>
+    <label class="chk"><input type="checkbox" id="hid"> 显示隐藏窗口</label>
+    <input type="text" id="search" class="search" placeholder="按标题 / 进程 / PID 过滤…">
+  </div>
+
+  <div class="grid">
+    <!-- 左侧：窗口列表 -->
+    <div class="tile col-list">
+      <div class="tile-h"><span class="ic">▤</span>窗口列表
+        <span class="cnt">共 <b id="stTotal">0</b> · 显示 <b id="stShow">0</b></span></div>
+      <div class="tile-b">
+        <table>
+          <thead><tr>
+            <th>标题</th>
+            <th>进程</th>
+            <th style="width:64px" class="num">PID</th>
+            <th style="width:120px">状态</th>
+          </tr></thead>
+          <tbody id="tb"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 右侧：选中窗口详情 + 操作 -->
+    <div class="tile col-detail">
+      <div class="tile-h"><span class="ic">ℹ</span>选中窗口 <span class="cnt" id="detName"></span></div>
+      <div class="tile-b">
+        <div class="empty-hint" id="detEmpty">← 点击左侧列表选中一个窗口</div>
+        <div id="detBody" style="display:none">
+          <div class="kv" id="detKv"></div>
+          <div class="act" id="detAct"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 左下：操作日志磁贴（不占整行，与列表列对齐） -->
+    <div class="tile col-log">
+      <div class="tile-h"><span class="ic">📜</span>操作日志
+        <button class="small sec" id="logClear">清空</button></div>
+      <div class="tile-b logbox" id="logBox"></div>
+    </div>
+
+    <!-- 右下：统计磁贴（与详情列对齐） -->
+    <div class="tile col-stats">
+      <div class="tile-h"><span class="ic">◈</span>统计</div>
+      <div class="tile-b" id="statsBox"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const PID = "winman";
+  let wins = [];
+  let selHwnd = null;         // 当前选中窗口句柄
+  const logs = [];
+  const ACT = { activate:"激活窗口", minimize:"最小化", maximize:"最大化",
+                restore:"还原", close:"关闭窗口", kill:"结束进程" };
+
+  function now(){ const d = new Date();
+    return String(d.getHours()).padStart(2,"0") + ":" +
+           String(d.getMinutes()).padStart(2,"0") + ":" +
+           String(d.getSeconds()).padStart(2,"0"); }
+
+  function addLog(action, target, ok, detail){
+    logs.unshift({ t: now(), a: action, o: target, ok: !!ok, d: detail || "" });
+    if (logs.length > 60) logs.pop();
+    renderLog();
+  }
+
+  function renderLog(){
+    const box = $("logBox");
+    box.innerHTML = "";
+    if (!logs.length){
+      box.innerHTML = '<div class="log-empty">暂无操作记录</div>';
+      return;
+    }
+    logs.forEach((l)=>{
+      const div = stbox.el("div", { class:"logline" });
+      div.appendChild(stbox.el("span", { class:"t", text: l.t }));
+      div.appendChild(stbox.el("span", { class:"a", text: l.a }));
+      div.appendChild(stbox.el("span", { class:"o", text: l.o + (l.d ? " — " + l.d : "") }));
+      div.appendChild(stbox.el("span", { class:"r" + (l.ok ? "" : " fail"),
+        text: l.ok ? "✓ 成功" : "✗ 失败" }));
+      box.appendChild(div);
+    });
+    box.scrollTop = 0;
+  }
+
+  function renderStats(){
+    const arr = visible();
+    const mn = arr.filter((w)=>w.minimized).length;
+    const mx = arr.filter((w)=>w.maximized).length;
+    const rows = [
+      ["窗口总数", wins.length, ""],
+      ["当前显示", arr.length, "b"],
+      ["其中最小化", mn, "a"],
+      ["其中最大化", mx, ""],
+    ];
+    $("statsBox").innerHTML = rows.map((r)=>
+      '<div class="stat-row"><span class="k">' + r[0] + '</span>' +
+      '<span class="v ' + r[2] + '">' + r[1] + '</span></div>').join("");
+  }
+
+  async function load(){
+    const r = await stbox.rpc(PID, "list", { hidden: $("hid").checked });
+    if (!r.ok) return;
+    wins = r.data.windows || [];
+    $("stTotal").textContent = r.data.total;
+    render();
+  }
+
+  function visible(){
+    const q = $("search").value.trim().toLowerCase();
+    if (!q) return wins;
+    return wins.filter((w)=>
+      w.title.toLowerCase().includes(q) ||
+      w.process.toLowerCase().includes(q) ||
+      String(w.pid).includes(q) ||
+      w.cls.toLowerCase().includes(q));
+  }
+
+  function selected(){
+    return wins.find((w)=>w.hwnd === selHwnd) || null;
+  }
+
+  function stateText(w){
+    if (!w.visible) return "隐藏";
+    if (w.minimized) return "最小化";
+    if (w.maximized) return "最大化";
+    return "正常";
+  }
+
+  function renderDetail(){
+    const w = selected();
+    if (!w){
+      $("detEmpty").style.display = "";
+      $("detBody").style.display = "none";
+      $("detName").textContent = "";
+      return;
+    }
+    $("detEmpty").style.display = "none";
+    $("detBody").style.display = "";
+    $("detName").textContent = w.title + " (" + w.process + ")";
+    const r = w.rect;
+    const kv = [
+      ["标题", w.title],
+      ["类名", w.cls],
+      ["进程", w.process || "-"],
+      ["PID", String(w.pid)],
+      ["句柄", "0x" + Number(w.hwnd).toString(16).toUpperCase()],
+      ["位置尺寸", r.x + "," + r.y + "  " + r.width + "×" + r.height],
+      ["状态", stateText(w)],
+      ["置顶", w.topmost ? "是" : "否"],
+      ["透明度", w.opacity == null ? "100%" : Math.round(w.opacity / 2.55) + "%"],
+    ];
+    const box = $("detKv");
+    box.innerHTML = "";
+    kv.forEach(([k,v])=>{
+      box.appendChild(stbox.el("div", { class:"k", text: k }));
+      box.appendChild(stbox.el("div", { class:"v" + (k === "句柄" ? " mono" : ""), text: v }));
+    });
+    const act = $("detAct");
+    act.innerHTML = "";
+    act.appendChild(stbox.el("button", { text:"激活", onclick: ()=>
+      doAdmin("activate", { hwnd: w.hwnd }, ACT.activate, w.title) }));
+    act.appendChild(stbox.el("button", { class:"sec", text:"显示", onclick: ()=>
+      doAdmin("show", { hwnd: w.hwnd }, "显示", w.title) }));
+    act.appendChild(stbox.el("button", { class:"sec", text:"隐藏", onclick: ()=>
+      doAdmin("hide", { hwnd: w.hwnd }, "隐藏", w.title) }));
+    if (!w.minimized){
+      act.appendChild(stbox.el("button", { class:"sec", text:"最小化", onclick: ()=>
+        doAdmin("minimize", { hwnd: w.hwnd }, ACT.minimize, w.title) }));
+    }
+    if (w.maximized){
+      act.appendChild(stbox.el("button", { class:"sec", text:"还原", onclick: ()=>
+        doAdmin("restore", { hwnd: w.hwnd }, ACT.restore, w.title) }));
+    } else if (!w.minimized){
+      act.appendChild(stbox.el("button", { class:"sec", text:"最大化", onclick: ()=>
+        doAdmin("maximize", { hwnd: w.hwnd }, ACT.maximize, w.title) }));
+    }
+    act.appendChild(stbox.el("button", { class:"sec", text: w.topmost ? "取消置顶" : "置顶",
+      onclick: ()=> doAdmin(w.topmost ? "untopmost" : "topmost", { hwnd: w.hwnd },
+        w.topmost ? "取消置顶" : "置顶", w.title) }));
+    act.appendChild(stbox.el("button", { class:"sec", text:"置底", onclick: ()=>
+      doAdmin("bottom", { hwnd: w.hwnd }, "置底", w.title) }));
+    act.appendChild(stbox.el("button", { class:"sec", text:"居中", onclick: ()=>
+      doAdmin("center", { hwnd: w.hwnd }, "居中", w.title) }));
+    // 透明度滑块
+    {
+      const cur = w.opacity == null ? 100 : Math.round(w.opacity / 2.55);
+      const wrap = stbox.el("span", { class:"op-wrap" });
+      wrap.appendChild(stbox.el("span", { class:"op-lbl", text:"透明度 " }));
+      const rng = document.createElement("input");
+      rng.type = "range"; rng.min = 0; rng.max = 100; rng.value = cur;
+      rng.style.width = "110px"; rng.style.verticalAlign = "middle";
+      const val = document.createElement("span");
+      val.className = "op-val"; val.textContent = cur + "%";
+      val.style.width = "44px"; val.style.display = "inline-block";
+      val.style.color = "var(--dim)"; val.style.fontSize = "12px";
+      rng.oninput = ()=>{ val.textContent = rng.value + "%"; };
+      wrap.appendChild(rng); wrap.appendChild(val);
+      wrap.appendChild(stbox.el("button", { class:"sec small", text:"应用", onclick: ()=>
+        doAdmin("opacity", { hwnd: w.hwnd, alpha: parseInt(rng.value, 10) },
+          "透明度 " + rng.value + "%", w.title) }));
+      act.appendChild(wrap);
+    }
+    act.appendChild(stbox.el("button", { class:"danger", text:"关闭", onclick: ()=>{
+      if (confirm("向窗口「" + w.title + "」发送关闭消息？"))
+        doAdmin("close", { hwnd: w.hwnd }, ACT.close, w.title); }}));
+    act.appendChild(stbox.el("button", { class:"danger", text:"结束进程", onclick: ()=>{
+      if (confirm("结束窗口「" + w.title + "」所属进程 (PID " + w.pid + ")？"))
+        doAdmin("killOwner", { hwnd: w.hwnd }, ACT.kill, w.title + " (PID " + w.pid + ")"); }}));
+  }
+
+  function render(){
+    const tb = $("tb");
+    tb.innerHTML = "";
+    const arr = visible();
+    $("stShow").textContent = arr.length;
+    if (!arr.length){
+      tb.innerHTML = '<tr><td colspan="4"><div class="empty">（无窗口）</div></td></tr>';
+      renderStats();
+      renderDetail();
+      return;
+    }
+    arr.forEach((w)=>{
+      const tr = stbox.el("tr");
+      if (w.hwnd === selHwnd) tr.className = "sel";
+      if (w.minimized) tr.className += (tr.className ? " " : "") + "min";
+      tr.onclick = ()=>{ selHwnd = w.hwnd; load(); };  // 选中即刷新（含透明度）
+      const titleTd = stbox.el("td", { class:"title" });
+      titleTd.appendChild(stbox.el("span", { text: w.title }));
+      tr.appendChild(titleTd);
+      tr.appendChild(stbox.el("td", { class:"proc", text: w.process || "-" }));
+      tr.appendChild(stbox.el("td", { class:"num", text:String(w.pid) }));
+      const stTd = stbox.el("td");
+      if (!w.visible) stTd.appendChild(stbox.el("span", { class:"badge min", text:"隐藏" }));
+      if (w.minimized) stTd.appendChild(stbox.el("span", { class:"badge min", text:"最小化" }));
+      if (w.maximized) stTd.appendChild(stbox.el("span", { class:"badge max", text:"最大化" }));
+      if (w.topmost) stTd.appendChild(stbox.el("span", { class:"badge max", text:"置顶" }));
+      if (w.visible && !w.minimized && !w.maximized)
+        stTd.appendChild(stbox.el("span", { class:"badge",
+          text:"正常", style:"color:var(--green)" }));
+      tr.appendChild(stTd);
+      tb.appendChild(tr);
+    });
+    renderStats();
+    renderDetail();
+  }
+
+  async function doAdmin(api, args, action, target){
+    let ok = false, detail = "";
+    try{
+      const r = await stbox.rpcWithApproval(PID, api, args, { onPending:()=>{} });
+      ok = !!r.ok;
+      if (!r.ok) detail = "[" + (r.error && r.error.code) + "] " + (r.error && r.error.message);
+    }catch(e){ detail = String(e.message || e); }
+    addLog(action, target, ok, detail);
+    if (!ok) alert("[" + (detail || "未知错误") + "]");
+    await load();
+  }
+
+  $("btnRefresh").onclick = load;
+  $("auto").onchange = ()=>{
+    clearInterval(window.__auto);
+    if ($("auto").checked) window.__auto = setInterval(load, 4000);
+  };
+  $("hid").onchange = ()=>{ load(); };
+  $("search").oninput = ()=>{ render(); };
+  $("logClear").onclick = ()=>{ logs.length = 0; renderLog(); };
+
+  load();
+  setInterval(load, 20000);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self' http://127.0.0.1:*; style-src 'self' 'unsafe-inline'; img-src 'self' data:; script-src 'self'">
+<title>SystemToolBox</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ============ 自绘标题栏（无系统标题栏） ============ -->
+<header id="titlebar">
+  <div class="tb-left">
+    <img id="tb-logo" class="tb-logo" alt="" width="18" height="18">
+    <span id="tb-title" class="tb-title">SystemToolBox</span>
+    <span id="tb-plugin" class="tb-plugin"></span>
+  </div>
+  <div class="tb-right">
+    <button id="btn-refresh" class="tb-btn" title="重新加载">⟳</button>
+    <button id="btn-min" class="tb-btn" title="最小化">&#xE921;</button>
+    <button id="btn-max" class="tb-btn" title="最大化">&#xE922;</button>
+    <button id="btn-close" class="tb-btn tb-close" title="关闭">&#xE8BB;</button>
+  </div>
+</header>
+
+<div id="layout">
+  <!-- ============ 左栏（平铺分组，无下拉；不含标题/图标） ============ -->
+  <nav id="sidebar">
+    <div class="sb-home">
+      <button id="btn-home" class="sb-home-btn" title="主页">⌂ 主页</button>
+    </div>
+    <div class="sb-filter">
+      <input type="text" id="sb-search" class="sb-search" placeholder="筛选插件…">
+    </div>
+    <div id="sb-groups"></div>
+    <div class="sb-footer">
+      <div class="sb-foot-row">
+        <button id="btn-logs" class="sb-foot-btn" title="日志">📜 日志</button>
+        <button id="btn-exit" class="sb-foot-btn sb-foot-exit" title="退出">⏻ 退出</button>
+      </div>
+      <button id="btn-shortcuts" class="sb-foot-btn" title="快捷键管理">⌨ 快捷键管理</button>
+      <button id="btn-manager" class="sb-foot-btn" title="插件管理">⚙ 插件管理</button>
+      <button id="btn-settings" class="sb-foot-btn" title="设置">⚙ 设置</button>
+    </div>
+  </nav>
+
+  <!-- ============ 右区 ============ -->
+  <main id="right">
+    <!-- 顶栏（面包屑 / 权限标签；刷新已移至标题栏） -->
+    <div id="topbar">
+      <div class="tp-left">
+        <span class="tp-crumb" id="tp-crumb">主页</span>
+        <span class="tp-sep">/</span>
+        <span id="tp-title" class="tp-title">系统信息预览</span>
+        <span id="tp-tag" class="tp-tag">内置</span>
+      </div>
+    </div>
+
+    <!-- 内容区 -->
+    <div id="content">
+      <iframe id="frame" src="" title="插件页面"></iframe>
+    </div>
+  </main>
+</div>
+
+<!-- ============ 启动冲突报错弹窗 ============ -->
+<div id="modal-conflict" class="modal hidden">
+  <div class="modal-box">
+    <div class="modal-title">启动报错 — 顶栏冲突</div>
+    <div class="modal-body" id="conflict-body"></div>
+    <div class="modal-foot">
+      <button class="btn primary" id="btn-conflict-ok">知道了</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 审批弹窗（第一次需要权限时） ============ -->
+<div id="modal-approval" class="modal hidden">
+  <div class="modal-box">
+    <div class="modal-title">权限申请</div>
+    <div class="modal-body" id="approval-body"></div>
+    <div class="modal-foot">
+      <button class="btn" id="btn-approval-once">允许一次</button>
+      <button class="btn primary" id="btn-approval-always">总是允许</button>
+      <button class="btn" id="btn-approval-deny-once">本次不允许</button>
+      <button class="btn danger" id="btn-approval-deny">拒绝</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 插件管理 ============ -->
+<div id="modal-manager" class="modal hidden">
+  <div class="modal-box wide">
+    <div class="modal-title">插件管理
+      <span class="mgmt-actions">
+        <button class="btn small" id="btn-mgr-enable-all">启用全部</button>
+        <button class="btn small" id="btn-mgr-disable-all">禁用全部</button>
+        <button class="btn small" id="btn-rescan">重新扫描</button>
+        <button class="btn small" id="btn-mgr-close">关闭</button>
+      </span>
+    </div>
+    <div class="modal-body">
+      <div id="mgr-status" class="mgr-status"></div>
+      <table id="mgr-table" class="mgr-table">
+        <thead>
+          <tr><th>插件</th><th>状态</th><th>分组</th><th>顶栏</th><th>操作</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 插件详情（选中具体插件后才有：权限级别/API授权/快捷键授权） ============ -->
+<div id="modal-grants" class="modal hidden">
+  <div class="modal-box wide">
+    <div class="modal-title">插件详情 <span id="grants-plugin"></span>
+      <span class="mgmt-actions"><button class="btn small" id="btn-grants-close">关闭</button></span>
+    </div>
+    <div class="modal-body">
+      <div class="mgr-status hint-row">
+        <button type="button" class="hint-btn" data-hint-key="grants-note">?</button>
+        <span>权限级别修改立即生效；见提示。</span>
+      </div>
+      <div class="grants-perm">
+        <label>权限级别：
+          <select id="grants-level">
+            <option value="readonly">只读 readonly</option>
+            <option value="approval">审批 approval</option>
+            <option value="full">全权 full</option>
+          </select>
+        </label>
+        <span id="grants-perm-tip" class="grants-tip"></span>
+      </div>
+      <div class="grants-wrap">
+        <div id="grants-overlay" class="grants-overlay hidden">
+          <span id="grants-overlay-text"></span>
+        </div>
+        <div class="grants-section">API 授权</div>
+        <table id="grants-table" class="mgr-table">
+          <thead><tr><th>接口</th><th>要求</th><th>说明</th><th>授权</th><th>操作</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="grants-section">快捷键申请（是否允许作为权限管理之一）</div>
+        <div id="grants-shortcuts" class="grants-shortcuts"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 设置（自带侧栏：系统信息 / 更改设置 / 关于） ============ -->
+<div id="modal-settings" class="modal hidden">
+  <div class="modal-box set-wide">
+    <div class="modal-title">设置
+      <span class="mgmt-actions"><button class="btn small" id="btn-settings-close">关闭</button></span>
+    </div>
+    <div class="set-body">
+      <nav class="set-nav">
+        <div class="set-nav-item active" data-pane="info">系统信息</div>
+        <div class="set-nav-item" data-pane="change">更改设置</div>
+        <div class="set-nav-item" data-pane="about">关于</div>
+      </nav>
+      <div class="set-panes">
+        <div class="set-pane" id="pane-info"></div>
+        <div class="set-pane hidden" id="pane-change"></div>
+        <div class="set-pane hidden" id="pane-about"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 日志 ============ -->
+<div id="modal-logs" class="modal hidden">
+  <div class="modal-box wide tall">
+    <div class="modal-title">日志
+      <span class="mgmt-actions">
+        <button class="btn small" id="btn-logs-refresh">刷新</button>
+        <button class="btn small" id="btn-logs-copy">📋 全选复制</button>
+        <button class="btn small danger" id="btn-logs-clear">清空</button>
+        <button class="btn small" id="btn-logs-close">关闭</button>
+      </span>
+    </div>
+    <div class="modal-body">
+      <pre id="logs-body" class="logs-body">加载中…</pre>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 快捷键管理 ============ -->
+<div id="modal-shortcuts" class="modal hidden">
+  <div class="modal-box wide">
+    <div class="modal-title">快捷键管理
+      <span class="mgmt-actions">
+        <button class="btn small" id="btn-sc-reset-all">恢复全部默认</button>
+        <button class="btn small" id="btn-sc-refresh">刷新</button>
+        <button class="btn small" id="btn-sc-close">关闭</button>
+      </span>
+    </div>
+    <div class="modal-body">
+      <div class="mgr-status hint-row">
+        <button type="button" class="hint-btn" data-hint-key="shortcuts">?</button>
+        <span>插件申请的快捷键<strong>默认禁用</strong>；见提示。</span>
+      </div>
+      <table id="sc-table" class="mgr-table">
+        <thead><tr><th>插件</th><th>当前键位</th><th>说明</th><th>启用</th><th>操作</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div id="sc-none" class="mgr-status">暂无插件申请快捷键。</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 通用提示弹窗（所有提示语按钮点击后展示） ============ -->
+<div id="modal-hint" class="modal hidden">
+  <div class="modal-box">
+    <div class="modal-title" id="hint-title">提示</div>
+    <div class="modal-body" id="hint-body"></div>
+    <div class="modal-foot">
+      <button class="btn small" id="btn-hint-close">关闭</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

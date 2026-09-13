@@ -1,0 +1,13 @@
+{
+  "id": "ftp-client",
+  "name": "FTP客户端",
+  "version": "1.0.0",
+  "description": "基于标准库 ftplib 的 FTP 客户端：连接/浏览/上传/下载/新建目录/删除/重命名，自动识别 MLSD/LIST 列表格式",
+  "entry": "main.py",
+  "permission": "approval",
+  "sidebar": "网络",
+  "topbar": "ftp-client",
+  "icon": "",
+  "enabled": true,
+  "requires": []
+}

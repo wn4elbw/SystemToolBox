@@ -1,0 +1,27 @@
+{
+  "id": "claude",
+  "name": "仿 Claude",
+  "colors": {
+    "bg": "#efe6d6",
+    "bg2": "#f6efe4",
+    "card": "#f4ecdf",
+    "border": "#d9906a",
+    "text": "#1f1e1d",
+    "dim": "#7a6a5c",
+    "accent": "#c96442",
+    "green": "#2f9e63",
+    "amber": "#b0811e",
+    "red": "#c4453a",
+    "hover1": "#e9ddca",
+    "btn": "#e9ddca",
+    "btn-hover": "#e0d1b8",
+    "btn2": "#f0e8d9",
+    "btn2-hover": "#e8dcc8",
+    "item-hover": "#ebdfcc",
+    "code-bg": "#e7d8c2",
+    "item-bg": "#ecdfc9",
+    "log-text": "#4a4038",
+    "pill-bg": "rgba(255, 255, 255, .92)",
+    "pill-text": "#4a4038"
+  }
+}

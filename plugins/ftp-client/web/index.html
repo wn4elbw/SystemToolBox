@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>FTP客户端</title>
+<script src="/ui/stbox.js"></script>
+<style>
+  :root { --bg:#202124; --bg2:#2a2c31; --card:#26282d; --border:#000000;
+          --text:#ffffff; --dim:#9aa0ab; --accent:#4f8cff;
+          --green:#43d17e; --amber:#f0b34b; --red:#ef5a5a;
+          --hover1:#2c2f34; --btn:#32353c; --btn-hover:#3a3e46;
+          --btn2:#2a2d33; --btn2-hover:#33373e; --item-hover:#2b2e34;
+          --code-bg:#15161a; --item-bg:#23252a; --log-text:#d4d7de;
+          --pill-bg:rgba(0,0,0,.78); --pill-text:#ffffff; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text);
+         font:13px/1.6 "Segoe UI","Microsoft YaHei",sans-serif;
+         transition:background .2s,color .2s; }
+  .wrap { padding:16px 20px; max-width:1100px; }
+  h1 { font-size:17px; font-weight:600; margin-bottom:4px; }
+  .sub { color:var(--dim); font-size:12px; margin-bottom:14px; }
+  .card { background:var(--card); border:1px solid var(--border);
+          border-radius:12px; padding:13px 15px; }
+  .card + .card { margin-top:12px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  input[type=text],input[type=password],input[type=number] {
+    background:var(--bg); color:var(--text); border:1px solid var(--border);
+    border-radius:7px; padding:6px 9px; font:inherit; }
+  input:focus { outline:none; border-color:var(--accent); }
+  input.wide { flex:1; min-width:120px; }
+  button { border:0; border-radius:8px; padding:6px 13px; font:inherit; cursor:pointer;
+           color:#fff; background:var(--accent); transition:filter .15s; white-space:nowrap; }
+  button:hover { filter:brightness(1.12); }
+  button:disabled { opacity:.45; cursor:not-allowed; filter:none; }
+  button.sec { background:var(--btn2); color:var(--text); border:1px solid var(--border); }
+  button.sec:hover { background:var(--btn2-hover); filter:none; }
+  button.danger { background:color-mix(in srgb, var(--red) 22%, transparent); color:var(--red); }
+  button.danger:hover { background:color-mix(in srgb, var(--red) 32%, transparent); filter:none; }
+  button.small { padding:2px 8px; font-size:12px; border-radius:6px; }
+  .pill { display:inline-block; font-size:11px; padding:1px 8px; border-radius:99px; }
+  .on { background:color-mix(in srgb, var(--green) 15%, transparent); color:var(--green);
+        border:1px solid color-mix(in srgb, var(--green) 40%, transparent); }
+  .off { background:color-mix(in srgb, var(--dim) 12%, transparent); color:var(--dim);
+         border:1px solid color-mix(in srgb, var(--dim) 30%, transparent); }
+  .kv { display:flex; gap:18px; flex-wrap:wrap; font-size:12px; color:var(--dim); }
+  .kv b { color:var(--text); font-weight:500; margin-left:2px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { text-align:left; padding:6px 9px; border-bottom:1px solid var(--border);
+          white-space:nowrap; }
+  th { color:var(--dim); font-weight:500; font-size:12px; cursor:pointer; user-select:none; }
+  tbody tr:hover { background:color-mix(in srgb, var(--accent) 8%, transparent); }
+  tbody tr.dir { cursor:pointer; }
+  td.name { max-width:340px; overflow:hidden; text-overflow:ellipsis; }
+  td.num { font-variant-numeric:tabular-nums; }
+  .ops { display:flex; gap:5px; }
+  .icon-dir { color:var(--amber); margin-right:4px; }
+  .msg { min-height:18px; font-size:12px; margin-top:8px; }
+  .msg.err { color:var(--red); }
+  .msg.ok { color:var(--green); }
+  .empty { color:var(--dim); padding:18px; text-align:center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>FTP 客户端</h1>
+  <div class="sub">基于标准库 ftplib · 上传/下载/删除等写操作需审批</div>
+
+  <div class="card">
+    <div class="row">
+      <input type="text" id="host" class="wide" value="127.0.0.1" placeholder="服务器地址">
+      <input type="number" id="port" value="2121" style="width:86px" min="1" max="65535">
+      <input type="text" id="user" value="anonymous" style="width:130px" placeholder="用户名">
+      <input type="password" id="pass" style="width:140px" placeholder="密码">
+      <button id="btnConn">连接</button>
+      <button id="btnDisc" class="sec danger" disabled>断开</button>
+      <span id="connPill"><span class="pill off">未连接</span></span>
+    </div>
+  </div>
+
+  <div class="card" id="browser" style="display:none">
+    <div class="kv">
+      <span>服务器 <b id="svHost">-</b></span>
+      <span>用户 <b id="svUser">-</b></span>
+      <span>当前目录 <b id="svCwd">-</b></span>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <input type="text" id="pathInput" class="wide" placeholder="/">
+      <button id="btnGo" class="sec">前往</button>
+      <button id="btnUp" class="sec">⬆ 上级</button>
+      <button id="btnRefresh" class="sec">刷新</button>
+      <label class="chk" style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--dim)">
+        <input type="checkbox" id="auto"> 自动刷新
+      </label>
+      <button id="btnMkdir" class="sec">新建目录</button>
+      <button id="btnUpload">⬆ 上传</button>
+      <input type="file" id="filePick" style="display:none">
+    </div>
+    <div class="row" style="margin-top:8px">
+      <span style="font-size:12px;color:var(--dim)">本地保存目录</span>
+      <input type="text" id="localDir" class="wide" value="C:\FTPDownloads"
+             placeholder="下载文件保存目录，如 D:\Downloads">
+    </div>
+    <table style="margin-top:8px">
+      <thead><tr>
+        <th data-k="name">名称</th>
+        <th data-k="isDir" style="width:80px">类型</th>
+        <th data-k="size" style="width:110px" class="num">大小</th>
+        <th data-k="mtime" style="width:150px">修改时间</th>
+        <th style="width:230px">操作</th>
+      </tr></thead>
+      <tbody id="tb"></tbody>
+    </table>
+    <div class="msg" id="msg"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const PID = "ftp-client";
+  let entries = [];
+  let sortKey = "name", sortAsc = true;
+
+  // 固定深色主题：不提供在线切换，样式由本文件 CSS 变量（:root）决定
+
+  function setMsg(text, isErr){
+    const el = $("msg");
+    el.textContent = text || "";
+    el.className = "msg" + (isErr ? " err" : text ? " ok" : "");
+  }
+
+  function renderConn(s){
+    if (s.connected){
+      $("connPill").innerHTML = '<span class="pill on">已连接</span>';
+      $("svHost").textContent = s.host + ":" + s.port;
+      $("svUser").textContent = s.user;
+      $("svCwd").textContent = s.cwd || "/";
+      $("pathInput").value = s.cwd || "/";
+      $("browser").style.display = "";
+      $("btnConn").disabled = true;
+      $("btnDisc").disabled = false;
+    } else {
+      $("connPill").innerHTML = '<span class="pill off">未连接</span>';
+      $("browser").style.display = "none";
+      $("btnConn").disabled = false;
+      $("btnDisc").disabled = true;
+      entries = [];
+    }
+  }
+
+  function fmtSize(n){
+    if (n == null) return "-";
+    return stbox.fmtBytes(n);
+  }
+
+  function sortEntries(){
+    const arr = entries.slice();
+    arr.sort((a,b)=>{
+      if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
+      let va = a[sortKey], vb = b[sortKey];
+      if (sortKey === "size"){
+        va = va == null ? -1 : va; vb = vb == null ? -1 : vb;
+      } else { va = String(va||"").toLowerCase(); vb = String(vb||"").toLowerCase(); }
+      if (va < vb) return sortAsc ? -1 : 1;
+      if (va > vb) return sortAsc ? 1 : -1;
+      return 0;
+    });
+    return arr;
+  }
+
+  function renderTable(){
+    const tb = $("tb");
+    tb.innerHTML = "";
+    const arr = sortEntries();
+    if (!arr.length){
+      tb.innerHTML = '<tr><td colspan="5"><div class="empty">（空目录）</div></td></tr>';
+      return;
+    }
+    arr.forEach((e)=>{
+      const tr = stbox.el("tr");
+      if (e.isDir) tr.className = "dir";
+      tr.onclick = ()=> { if (e.isDir) gotoDir(e.name); };
+      const nameTd = stbox.el("td", { class:"name" },
+        [stbox.el("span", { text: e.isDir ? "📁 " : "📄 " }), stbox.el("span", { text: e.name })]);
+      tr.appendChild(nameTd);
+      tr.appendChild(stbox.el("td", { text: e.isDir ? "目录" : "文件" }));
+      tr.appendChild(stbox.el("td", { class:"num", text: fmtSize(e.size) }));
+      tr.appendChild(stbox.el("td", { text: e.mtime || "-" }));
+      const ops = stbox.el("td", { class:"ops" });
+      if (!e.isDir){
+        const dl = stbox.el("button", { class:"small sec", text:"下载", onclick:(ev)=>{
+          ev.stopPropagation(); doDownload(e.name); } });
+        ops.appendChild(dl);
+      }
+      const rn = stbox.el("button", { class:"small sec", text:"重命名", onclick:(ev)=>{
+        ev.stopPropagation(); doRename(e.name, e.isDir); } });
+      const del = stbox.el("button", { class:"small danger", text:"删除", onclick:(ev)=>{
+        ev.stopPropagation(); doDelete(e.name, e.isDir); } });
+      ops.appendChild(rn); ops.appendChild(del);
+      tr.appendChild(ops);
+      tb.appendChild(tr);
+    });
+  }
+
+  async function rpcAdmin(api, args){
+    setMsg("等待审批 / 执行中…");
+    try{
+      const r = await stbox.rpcWithApproval(PID, api, args,
+        { onPending:()=>setMsg("正在等待权限审批…") });
+      if (!r.ok) { setMsg(r.error.message, true); return false; }
+      return true;
+    }catch(e){ setMsg(String(e.message||e), true); return false; }
+  }
+
+  async function refresh(){
+    const s = (await stbox.rpc(PID, "status"));
+    if (!s.ok || !s.data.connected){ renderConn(s.data||{}); return; }
+    renderConn(s.data);
+    const r = await stbox.rpc(PID, "list", { path: s.data.cwd });
+    if (!r.ok){ setMsg(r.error.message, true); return; }
+    entries = r.data.entries || [];
+    $("svCwd").textContent = r.data.cwd;
+    $("pathInput").value = r.data.cwd;
+    renderTable();
+  }
+
+  async function connect(){
+    setMsg("连接中…");
+    const r = await stbox.rpc(PID, "connect", {
+      host: $("host").value.trim(), port: parseInt($("port").value||"21",10),
+      user: $("user").value.trim() || "anonymous", password: $("pass").value });
+    if (!r.ok){ setMsg(r.error.message, true); return; }
+    setMsg("连接成功 ✔");
+    await refresh();
+  }
+
+  async function gotoDir(name){
+    const cur = $("svCwd").textContent;
+    const path = (cur === "/" ? "" : cur) + "/" + name;
+    const r = await stbox.rpc(PID, "cwd", { path });
+    if (!r.ok){ setMsg(r.error.message, true); return; }
+    await refresh();
+  }
+
+  async function doDownload(name){
+    const dir = $("localDir").value.trim();
+    if (!dir){ setMsg("请先填写本地保存目录", true); return; }
+    const cur = $("svCwd").textContent;
+    const remote = (cur === "/" ? "" : cur) + "/" + name;
+    const local = dir.replace(/\\+$/, "") + "\\" + name;
+    if (await rpcAdmin("download", { remote, local })) setMsg("已下载到 " + local + " ✔");
+  }
+
+  async function doUpload(file){
+    if (!file) return;
+    if (file.size > 64*1024*1024){ setMsg("文件超过 64MB，请改用本地路径上传", true); return; }
+    setMsg("读取文件…");
+    const buf = new Uint8Array(await file.arrayBuffer());
+    let bin = "";
+    const CH = 0x8000;
+    for (let i=0;i<buf.length;i+=CH){
+      bin += String.fromCharCode.apply(null, buf.subarray(i, i+CH));
+    }
+    const b64 = btoa(bin);
+    const cur = $("svCwd").textContent;
+    const remote = (cur === "/" ? "" : cur) + "/" + file.name;
+    setMsg("上传 " + file.name + " …");
+    if (await rpcAdmin("upload", { remote, dataBase64: b64 })){
+      setMsg("上传成功 ✔");
+      await refresh();
+    }
+  }
+
+  async function doMkdir(){
+    const name = prompt("新建远程目录名：");
+    if (!name) return;
+    if (await rpcAdmin("mkdir", { name })){ setMsg("已创建 " + name + " ✔"); await refresh(); }
+  }
+
+  async function doDelete(name, isDir){
+    if (!confirm("确定删除「" + name + "」？" + (isDir ? "（目录必须为空）" : ""))) return;
+    if (await rpcAdmin("delete", { name, isDir })){ setMsg("已删除 ✔"); await refresh(); }
+  }
+
+  async function doRename(name, isDir){
+    const neu = prompt("重命名「" + name + "」为：", name);
+    if (!neu || neu === name) return;
+    const cur = $("svCwd").textContent;
+    const base = (cur === "/" ? "" : cur) + "/";
+    if (await rpcAdmin("rename", { old: base + name, new: base + neu })){
+      setMsg("已重命名 ✔"); await refresh();
+    }
+  }
+
+  $("btnConn").onclick = connect;
+  $("btnDisc").onclick = async ()=>{
+    const r = await stbox.rpc(PID, "disconnect");
+    if (r.ok) setMsg("已断开");
+    await refresh();
+  };
+  $("btnGo").onclick = async ()=>{
+    const path = $("pathInput").value.trim() || "/";
+    const r = await stbox.rpc(PID, "cwd", { path });
+    if (!r.ok){ setMsg(r.error.message, true); return; }
+    await refresh();
+  };
+  $("btnUp").onclick = async ()=>{
+    await stbox.rpc(PID, "cdUp", {});
+    await refresh();
+  };
+  $("btnRefresh").onclick = refresh;
+  $("btnMkdir").onclick = doMkdir;
+  $("btnUpload").onclick = ()=> $("filePick").click();
+  $("filePick").onchange = (e)=>{ doUpload(e.target.files[0]); e.target.value = ""; };
+  $("auto").onchange = ()=>{
+    clearInterval(window.__auto);
+    if ($("auto").checked) window.__auto = setInterval(refresh, 4000);
+  };
+  document.querySelectorAll("th").forEach((th)=>{
+    th.onclick = ()=>{
+      const k = th.dataset.k;
+      if (sortKey === k) sortAsc = !sortAsc; else { sortKey = k; sortAsc = true; }
+      renderTable();
+    };
+  });
+
+  refresh();
+  setInterval(refresh, 30000);
+})();
+</script>
+</body>
+</html>

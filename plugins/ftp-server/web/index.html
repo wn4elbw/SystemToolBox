@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>FTP服务器</title>
+<script src="/ui/stbox.js"></script>
+<style>
+  :root { --bg:#202124; --bg2:#2a2c31; --card:#26282d; --border:#000000;
+          --text:#ffffff; --dim:#9aa0ab; --accent:#4f8cff;
+          --green:#43d17e; --amber:#f0b34b; --red:#ef5a5a;
+          --hover1:#2c2f34; --btn:#32353c; --btn-hover:#3a3e46;
+          --btn2:#2a2d33; --btn2-hover:#33373e; --item-hover:#2b2e34;
+          --code-bg:#15161a; --item-bg:#23252a; --log-text:#d4d7de;
+          --pill-bg:rgba(0,0,0,.78); --pill-text:#ffffff; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text);
+         font:13px/1.6 "Segoe UI","Microsoft YaHei",sans-serif;
+         transition:background .2s,color .2s; }
+  .wrap { padding:16px 20px; max-width:980px; }
+  h1 { font-size:17px; font-weight:600; margin-bottom:4px; }
+  .sub { color:var(--dim); font-size:12px; margin-bottom:16px; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start; }
+  @media (max-width:860px){ .grid{ grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid var(--border);
+          border-radius:12px; padding:14px 16px; }
+  .card + .card { margin-top:14px; }
+  .card h3 { font-size:12px; color:var(--dim); font-weight:500;
+             margin-bottom:10px; display:flex; align-items:center; gap:6px; }
+  .kv { display:grid; grid-template-columns:auto 1fr; gap:5px 14px; font-size:13px; }
+  .kv b { color:var(--dim); font-weight:400; white-space:nowrap; }
+  .kv span { word-break:break-all; }
+  .pill { display:inline-block; font-size:11px; padding:1px 8px; border-radius:99px; }
+  .on { background:color-mix(in srgb, var(--green) 15%, transparent); color:var(--green);
+        border:1px solid color-mix(in srgb, var(--green) 40%, transparent); }
+  .off { background:color-mix(in srgb, var(--dim) 12%, transparent); color:var(--dim);
+         border:1px solid color-mix(in srgb, var(--dim) 30%, transparent); }
+  label.f { display:block; margin-bottom:10px; }
+  label.f span { display:block; color:var(--dim); font-size:12px; margin-bottom:3px; }
+  input[type=text],input[type=password],input[type=number] {
+    width:100%; background:var(--bg); color:var(--text);
+    border:1px solid var(--border); border-radius:7px; padding:6px 9px; font:inherit; }
+  input:focus { outline:none; border-color:var(--accent); }
+  .chk { display:flex; align-items:center; gap:7px; margin:2px 0 10px; color:var(--text); }
+  .btns { display:flex; gap:9px; margin-top:4px; }
+  button { border:0; border-radius:8px; padding:7px 16px; font:inherit; cursor:pointer;
+           color:#fff; background:var(--accent); transition:filter .15s; }
+  button:hover { filter:brightness(1.12); }
+  button:disabled { opacity:.45; cursor:not-allowed; filter:none; }
+  button.sec { background:var(--btn2); color:var(--text); border:1px solid var(--border); }
+  button.sec:hover { background:var(--btn2-hover); filter:none; }
+  button.danger { background:color-mix(in srgb, var(--red) 22%, transparent); color:var(--red); }
+  button.danger:hover { background:color-mix(in srgb, var(--red) 32%, transparent); filter:none; }
+  .log { font-family:Consolas,"Courier New",monospace; font-size:12px;
+         background:var(--bg); border:1px solid var(--border); border-radius:8px;
+         padding:10px; height:230px; overflow:auto; white-space:pre-wrap;
+         word-break:break-all; }
+  .log .dim { color:var(--dim); }
+  .msg { margin-top:10px; font-size:12px; min-height:18px; }
+  .msg.err { color:var(--red); }
+  .msg.ok { color:var(--green); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>FTP 服务器</h1>
+  <div class="sub">纯标准库实现的轻量 FTP 服务器 · 启动/停止为审批接口</div>
+
+  <div class="grid">
+    <div>
+      <div class="card"><h3>⚙ 服务器配置</h3>
+        <label class="f"><span>监听地址</span>
+          <input type="text" id="host" value="127.0.0.1" placeholder="127.0.0.1 或 0.0.0.0"></label>
+        <label class="f"><span>端口（0 = 随机可用端口）</span>
+          <input type="number" id="port" value="2121" min="0" max="65535"></label>
+        <label class="f"><span>根目录（默认：插件文件夹 Data 目录）</span>
+          <input type="text" id="root" placeholder="留空使用插件 Data 目录"></label>
+        <label class="f"><span>用户名（留空表示不启用账户登录）</span>
+          <input type="text" id="username" placeholder="admin"></label>
+        <label class="f"><span>密码</span>
+          <input type="password" id="password" placeholder="••••••"></label>
+        <label class="chk"><input type="checkbox" id="anon"> 允许匿名访问（anonymous / ftp）</label>
+        <div class="btns">
+          <button id="btnStart">▶ 启动</button>
+          <button id="btnStop" class="danger" disabled>■ 停止</button>
+        </div>
+        <div class="msg" id="msg"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card"><h3>📡 运行状态</h3>
+        <div class="kv" id="kv-status"><span class="sp">加载中…</span></div>
+      </div>
+      <div class="card"><h3>🧾 服务器日志</h3>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const PID = "ftp-server";
+
+  // 固定深色主题：不提供在线切换，样式由本文件 CSS 变量（:root）决定
+
+  function setMsg(text, isErr){
+    const el = $("msg");
+    el.textContent = text || "";
+    el.className = "msg" + (isErr ? " err" : text ? " ok" : "");
+  }
+
+  function fillForm(cfg, defaultRoot){
+    if (cfg && cfg.host) $("host").value = cfg.host;
+    if (cfg && cfg.port) $("port").value = cfg.port;
+    if (cfg && cfg.root) { $("root").value = cfg.root; }
+    else if (defaultRoot) { $("root").value = defaultRoot; }
+    if (cfg && cfg.username) $("username").value = cfg.username;
+    if (cfg && cfg.password) $("password").value = cfg.password;
+    if (cfg) $("anon").checked = !!cfg.allowAnon;
+  }
+
+  function renderStatus(s){
+    const kv = $("kv-status");
+    const pill = s.running
+      ? '<span class="pill on">运行中</span>'
+      : '<span class="pill off">已停止</span>';
+    kv.innerHTML = "";
+    const pairs = s.running
+      ? [["状态", pill], ["监听地址", s.host + ":" + s.port],
+         ["根目录", s.root], ["账户", s.accounts.length ? s.accounts.join("、") : "（无）"],
+         ["匿名访问", s.allowAnon ? "允许" : "不允许"],
+         ["启动时间", new Date(s.startedAt*1000).toLocaleString()],
+         ["当前客户端", s.clients.length ? s.clients.join("<br>") : "无"]]
+      : [["状态", pill],
+         ["最后错误", s.lastError || "—"]];
+    pairs.forEach(([k,v])=>{
+      kv.appendChild(stbox.el("b",{text:k}));
+      const sp = stbox.el("span");
+      if (k === "状态") sp.innerHTML = v; else sp.textContent = v;
+      kv.appendChild(sp);
+    });
+    $("btnStart").disabled = s.running;
+    $("btnStop").disabled = !s.running;
+  }
+
+  function renderLog(s){
+    const el = $("log");
+    el.innerHTML = "";
+    (s.logs||[]).forEach((ln)=>{
+      el.appendChild(stbox.el("div",{text:ln, class:"dim"}));
+    });
+    el.scrollTop = el.scrollHeight;
+  }
+
+  async function refresh(){
+    try{
+      const r = await stbox.rpc(PID, "status");
+      if (!r.ok) { setMsg(r.error.message, true); return; }
+      const s = r.data;
+      fillForm(s.lastConfig, s.defaultRoot);
+      renderStatus(s);
+      renderLog(s);
+    }catch(e){ setMsg(String(e.message||e), true); }
+  }
+
+  async function act(fn, args){
+    setMsg("等待审批 / 执行中…");
+    try{
+      const r = await stbox.rpcWithApproval(PID, fn, args,
+        { onPending:()=>setMsg("正在等待权限审批…") });
+      if (!r.ok) { setMsg(r.error.message, true); return; }
+      setMsg(fn === "start" ? "服务器已启动 ✔" : "服务器已停止 ✔");
+      await refresh();
+    }catch(e){ setMsg(String(e.message||e), true); }
+  }
+
+  $("btnStart").onclick = ()=>{
+    act("start", {
+      host: $("host").value.trim() || "127.0.0.1",
+      port: parseInt($("port").value || "0", 10),
+      root: $("root").value.trim(),
+      username: $("username").value.trim(),
+      password: $("password").value,
+      allowAnon: $("anon").checked,
+    });
+  };
+  $("btnStop").onclick = ()=> act("stop", {});
+
+  refresh();
+  setInterval(refresh, 2500);
+})();
+</script>
+</body>
+</html>

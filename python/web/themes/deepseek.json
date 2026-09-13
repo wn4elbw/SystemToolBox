@@ -1,0 +1,27 @@
+{
+  "id": "deepseek",
+  "name": "仿 DeepSeek",
+  "colors": {
+    "bg": "#dde8f7",
+    "bg2": "#edf4fd",
+    "card": "#eaf2fc",
+    "border": "#5f8bcf",
+    "text": "#101828",
+    "dim": "#5c6b84",
+    "accent": "#1f4d9e",
+    "green": "#2f9e63",
+    "amber": "#b0811e",
+    "red": "#d64545",
+    "hover1": "#d7e4f6",
+    "btn": "#d7e4f6",
+    "btn-hover": "#c9daf2",
+    "btn2": "#e8f0fb",
+    "btn2-hover": "#d9e6f8",
+    "item-hover": "#dae6f8",
+    "code-bg": "#e6eefb",
+    "item-bg": "#dfe9f8",
+    "log-text": "#37465c",
+    "pill-bg": "rgba(255, 255, 255, .92)",
+    "pill-text": "#37465c"
+  }
+}

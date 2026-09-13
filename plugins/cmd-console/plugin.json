@@ -1,0 +1,13 @@
+{
+  "id": "cmd-console",
+  "name": "CMD命令行",
+  "version": "1.0.0",
+  "description": "内置交互式 CMD 终端：持久 cmd.exe 会话、实时输出、回车执行、Ctrl+C 终止/重启会话；支持全局快捷键 Ctrl+Alt+T 聚焦",
+  "entry": "main.py",
+  "permission": "approval",
+  "sidebar": "工具",
+  "topbar": "cmd-console",
+  "icon": "",
+  "enabled": true,
+  "requires": []
+}

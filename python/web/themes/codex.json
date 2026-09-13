@@ -1,0 +1,27 @@
+{
+  "id": "codex",
+  "name": "仿 Codex",
+  "colors": {
+    "bg": "#0c0d10",
+    "bg2": "#14161b",
+    "card": "#111318",
+    "border": "#22262e",
+    "text": "#eef0f4",
+    "dim": "#8b919e",
+    "accent": "#58a6ff",
+    "green": "#3fb950",
+    "amber": "#d29922",
+    "red": "#f85149",
+    "hover1": "#1a1d23",
+    "btn": "#1c1f26",
+    "btn-hover": "#242831",
+    "btn2": "#171a20",
+    "btn2-hover": "#1f232b",
+    "item-hover": "#1a1d23",
+    "code-bg": "#07080b",
+    "item-bg": "#16191f",
+    "log-text": "#c9d1d9",
+    "pill-bg": "rgba(0, 0, 0, .8)",
+    "pill-text": "#eef0f4"
+  }
+}

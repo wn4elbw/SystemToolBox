@@ -1,0 +1,15 @@
+# Windows Driver Kit (WDK) 传统构建文件
+# 用法：在已安装 WDK 的“开发人员命令提示符”中，于本目录执行 `build -Z`
+# （现代 WDK 亦可直接打开目录下的 stbdrv.sln / 用 msbuild 构建）
+TARGETNAME = stbdrv
+TARGETTYPE = DRIVER
+TARGETPATH = obj
+TARGETEXT  = sys
+
+INCLUDES   = .
+
+SOURCES    = \
+    stbdrv.c
+
+# 关闭签名检查的本地构建（测试签名环境）
+MSC_WARNING_LEVEL = /W4

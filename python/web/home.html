@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>主页</title>
+<script src="/ui/stbox.js"></script>
+<style>
+  /* 固定深色主题（不提供在线切换），CSS 变量在 :root 定义（与外壳同调色板） */
+  :root {
+    --bg: #202124; --bg2: #2a2c31; --card: #26282d; --border: #000000;
+    --text: #ffffff; --dim: #9aa0ab; --accent: #4f8cff;
+    --green: #43d17e; --amber: #f0b34b; --red: #ef5a5a;
+    --hover1: #2c2f34; --btn: #32353c; --btn-hover: #3a3e46;
+    --btn2: #2a2d33; --btn2-hover: #33373e; --item-hover: #2b2e34;
+    --code-bg: #15161a; --item-bg: #23252a; --log-text: #d4d7de;
+    --pill-bg: rgba(0,0,0,.78); --pill-text: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text);
+         font: 13px/1.6 "Segoe UI", "Microsoft YaHei", sans-serif;
+         transition: background .2s, color .2s; }
+  .wrap { padding: 16px 20px; max-width: 1100px; }
+  h1 { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+  .sub { color: var(--dim); font-size: 12px; margin-bottom: 16px; }
+  .tag { display: inline-block; font-size: 11px; color: var(--accent);
+         background: color-mix(in srgb, var(--accent) 12%, transparent);
+         border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+         border-radius: 5px; padding: 0 6px; margin-left: 6px; }
+  .col { display: grid; grid-template-columns: 330px 1fr; gap: 16px;
+         align-items: start; }
+  @media (max-width: 860px) { .col { grid-template-columns: 1fr; } }
+
+  .card { background: var(--card); border: 1px solid var(--border);
+          border-radius: 12px; padding: 14px 16px; }
+  .card + .card { margin-top: 14px; }
+  .card h3 { font-size: 12px; color: var(--dim); font-weight: 500;
+             margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 5px 14px;
+        font-size: 13px; }
+  .kv b { color: var(--dim); font-weight: 400; white-space: nowrap; }
+  .kv span { word-break: break-all; }
+
+  /* 右列：系统占用磁贴 */
+  .tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  @media (max-width: 560px) { .tiles { grid-template-columns: 1fr; } }
+  .tile { background: var(--card); border: 1px solid var(--border);
+          border-radius: 12px; padding: 16px 18px;
+          transition: background .15s, transform .1s; }
+  .tile:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+  .tile .t-name { font-size: 12px; color: var(--dim); margin-bottom: 8px; }
+  .tile .t-num { font-size: 30px; font-weight: 700;
+                 font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .tile .t-num .u { font-size: 13px; color: var(--dim); font-weight: 400;
+                    margin-left: 4px; }
+  .tile .t-sub { font-size: 12px; color: var(--dim); margin-top: 6px; }
+  .bar { height: 8px;
+         background: color-mix(in srgb, var(--text) 9%, transparent);
+         border-radius: 4px;
+         overflow: hidden; margin-top: 10px; }
+  .bar i { display: block; height: 100%; border-radius: 4px;
+           transition: width .4s ease; }
+  .c-cpu { background: linear-gradient(90deg, var(--accent),
+         color-mix(in srgb, var(--accent) 55%, #ffffff)); }
+  .c-mem { background: linear-gradient(90deg, var(--amber),
+           color-mix(in srgb, var(--amber) 55%, #ffffff)); }
+  .c-disk { background: linear-gradient(90deg, var(--green),
+            color-mix(in srgb, var(--green) 55%, #ffffff)); }
+  .c-other { background: linear-gradient(90deg,
+             color-mix(in srgb, var(--accent) 62%, var(--red)),
+             color-mix(in srgb, var(--accent) 40%, var(--red))); }
+  .err { color: var(--red); padding: 20px; text-align: center; }
+  .sp { color: var(--dim); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>主页 <span class="tag">软件本体</span></h1>
+  <div class="sub">左侧为计算机账户与基础信息，右侧磁贴实时显示系统占用</div>
+
+  <div class="col">
+    <div class="left">
+      <div class="card"><h3>🖥 计算机账户</h3>
+        <div class="kv" id="kv-acc"><span class="sp">加载中…</span></div></div>
+      <div class="card"><h3>ℹ 基础信息</h3>
+        <div class="kv" id="kv-base"><span class="sp">加载中…</span></div></div>
+    </div>
+    <div class="tiles" id="tiles">
+      <div class="tile"><div class="sp">加载中…</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+
+  // 固定深色主题：不提供在线切换，页面样式由本文件 CSS 变量（:root）决定
+
+  function kv(host, pairs) {
+    host.innerHTML = "";
+    pairs.forEach(([k, v, cls]) => {
+      host.appendChild(stbox.el("b", { text: k }));
+      const s = stbox.el("span", { text: v == null ? "-" : String(v) });
+      if (cls) s.style.color = cls;
+      host.appendChild(s);
+    });
+  }
+
+  function pct(used, total) {
+    return total ? Math.round(used / total * 100) : 0;
+  }
+
+  function tile(name, num, unit, sub, color, widthPct) {
+    return stbox.el("div", { class: "tile" }, [
+      stbox.el("div", { class: "t-name", text: name }),
+      stbox.el("div", { class: "t-num" }, [
+        stbox.el("span", { text: num }),
+        stbox.el("span", { class: "u", text: unit }),
+      ]),
+      stbox.el("div", { class: "t-sub", text: sub }),
+      stbox.el("div", { class: "bar" }, [
+        stbox.el("i", { class: color, style: "width:" +
+          Math.min(100, Math.max(0, widthPct)) + "%" }),
+      ]),
+    ]);
+  }
+
+  async function refresh() {
+    try {
+      const s = (await stbox.rpc("system", "summary")).data;
+      const disks = (await stbox.rpc("system", "disks")).data || [];
+
+      kv($("kv-acc"), [
+        ["计算机名", s.machineName],
+        ["当前账户", s.userName],
+        ["开机时长", stbox.fmtUptime(s.uptimeSec)],
+        ["进程数", s.processCount],
+      ]);
+
+      kv($("kv-base"), [
+        ["系统", s.osName],
+        ["版本", s.osVersion],
+        ["处理器", s.cpuName],
+        ["核心", s.cores + " 物理 / " + s.logicalCores + " 逻辑"],
+      ]);
+
+      // 磁贴：CPU / 内存 / 系统盘 / 内存余量
+      const memPct = pct(s.memoryUsed, s.memoryTotal);
+      const sysDisk = disks.find((d) =>
+        d.root.toUpperCase() === "C:\\") || disks[0];
+      const diskPct = sysDisk && sysDisk.totalBytes
+        ? pct(sysDisk.totalBytes - sysDisk.freeBytes, sysDisk.totalBytes) : 0;
+      const tiles = [
+        tile("CPU 占用", s.cpuUsage == null ? "-" : s.cpuUsage.toFixed(1),
+             "%", s.cpuName ? s.cpuName.slice(0, 26) : "",
+             "c-cpu", s.cpuUsage || 0),
+        tile("内存占用", memPct, "%",
+             "已用 " + stbox.fmtBytes(s.memoryUsed) +
+             " / " + stbox.fmtBytes(s.memoryTotal),
+             "c-mem", memPct),
+        tile("磁盘占用", diskPct, "%",
+             sysDisk ? sysDisk.root + " " +
+               stbox.fmtBytes(sysDisk.totalBytes - sysDisk.freeBytes) +
+               " / " + stbox.fmtBytes(sysDisk.totalBytes) : "无磁盘",
+             "c-disk", diskPct),
+        tile("系统", s.osName.split(/\(| R/)[0], "",
+             "开机 " + stbox.fmtUptime(s.uptimeSec) +
+             " · " + s.logicalCores + " 线程",
+             "c-other", 100),
+      ];
+      const host = $("tiles");
+      host.innerHTML = "";
+      tiles.forEach((t) => host.appendChild(t));
+    } catch (e) {
+      $("tiles").innerHTML = '<div class="err">加载失败: ' + e.message + "</div>";
+    }
+  }
+
+  refresh();
+  setInterval(refresh, 3000);
+})();
+</script>
+</body>
+</html>

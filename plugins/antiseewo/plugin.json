@@ -1,0 +1,13 @@
+{
+  "id": "antiseewo",
+  "name": "希沃反制",
+  "version": "2.0.0",
+  "description": "希沃易课堂 (Seewo ECR) 反制工具（基于反编译静态报告移植）：黑屏退出、广播窗口化/全屏化、解除键鼠/网络/USB/HTTPS 审计限制、HTTPS 证书清理、恢复安全模式、防火墙规则清理、剪贴板停用、进程树全停、一键全解、防杀、防截屏、持久化清理、密码读取",
+  "entry": "main.py",
+  "permission": "approval",
+  "sidebar": "电子教室",
+  "topbar": "",
+  "icon": "",
+  "enabled": true,
+  "requires": []
+}
