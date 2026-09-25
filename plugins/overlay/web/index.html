@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>系统信息叠加层</title>
+<script src="/ui/stbox.js"></script>
+<style>
+  :root { --bg:#202124; --bg2:#2a2c31; --card:#26282d; --border:#000000;
+          --text:#ffffff; --dim:#9aa0ab; --accent:#4f8cff;
+          --green:#43d17e; --amber:#f0b34b; --red:#ef5a5a;
+          --hover1:#2c2f34; --btn:#32353c; --btn-hover:#3a3e46;
+          --btn2:#2a2d33; --btn2-hover:#33373e; --item-hover:#2b2e34;
+          --pane:#1b1d22; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text);
+         font:13px/1.6 "Segoe UI","Microsoft YaHei",sans-serif; }
+  .wrap { padding:16px 20px; max-width:760px; margin:0 auto; }
+  h1 { font-size:18px; font-weight:600; }
+  .sub { color:var(--dim); font-size:12px; margin:2px 0 14px; }
+  .kbd { border:1px solid var(--border); border-radius:4px; padding:0 5px;
+         background:color-mix(in srgb, var(--text) 7%, transparent); }
+
+  .card { background:var(--card); border:1px solid var(--border);
+          border-radius:10px; padding:14px 16px; margin-bottom:14px; }
+  .card h2 { font-size:14px; font-weight:600; margin-bottom:10px;
+             display:flex; align-items:center; gap:8px; }
+
+  .pill { display:inline-block; font-size:11px; padding:1px 8px;
+          border-radius:99px; }
+  .on { background:color-mix(in srgb, var(--green) 15%, transparent);
+        color:var(--green); border:1px solid color-mix(in srgb, var(--green) 40%, transparent); }
+  .off { background:color-mix(in srgb, var(--dim) 12%, transparent);
+         color:var(--dim); border:1px solid color-mix(in srgb, var(--dim) 30%, transparent); }
+
+  button { border:0; border-radius:8px; padding:7px 16px; font:inherit;
+           cursor:pointer; color:#fff; background:var(--accent); transition:filter .15s; }
+  button:hover { filter:brightness(1.12); }
+  button.sec { background:var(--btn2); color:var(--text);
+               border:1px solid var(--border); }
+  button.sec:hover { background:var(--btn2-hover); filter:none; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+
+  .row { display:flex; align-items:center; gap:10px; margin:10px 0;
+         flex-wrap:wrap; }
+  .row label { width:120px; color:var(--dim); font-size:12.5px; }
+  input[type=range] { flex:1; min-width:140px; accent-color:var(--accent); }
+  .val { min-width:64px; text-align:right; color:var(--text);
+         font-variant-numeric:tabular-nums; font-size:12.5px; }
+  .hint { color:var(--dim); font-size:12px; margin-top:10px; }
+  .checks { display:flex; gap:18px; flex-wrap:wrap; }
+  .checks label { display:flex; align-items:center; gap:6px; cursor:pointer;
+                  color:var(--text); font-size:13px; }
+  input[type=checkbox] { accent-color:var(--accent); width:15px; height:15px; }
+
+  .stat { display:flex; gap:22px; flex-wrap:wrap; }
+  .stat .it .k { color:var(--dim); font-size:11px; }
+  .stat .it .vv { font-size:16px; font-weight:600; font-variant-numeric:tabular-nums; }
+  .samples { color:var(--dim); font-size:11px; }
+
+  .mini { display:flex; gap:8px; margin-top:6px; }
+  .mini button { padding:5px 12px; font-size:12px; background:var(--btn2);
+                 border:1px solid var(--border); }
+  .mini button:hover { background:var(--btn2-hover); filter:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>系统信息叠加层</h1>
+  <div class="sub">
+    半透明置顶小窗，折线图实时展示近 20s 的 CPU / 内存 / 磁盘 / 网络变化。
+    可拖动标题栏移动、拖边调整大小；鼠标穿透开启后可自定义。
+  </div>
+
+  <div class="card">
+    <h2>叠加层 <span id="pill"><span class="pill off" id="pillTxt">关闭</span></span></h2>
+    <div class="row">
+      <label></label>
+      <button id="btnToggle">▶ 开启叠加层</button>
+      <button id="btnReset" class="sec">重置位置</button>
+    </div>
+    <div class="stat">
+      <div class="it"><div class="k">CPU</div><div class="vv" id="sCpu">-</div></div>
+      <div class="it"><div class="k">内存</div><div class="vv" id="sMem">-</div></div>
+      <div class="it"><div class="k">磁盘</div><div class="vv" id="sDisk">-</div></div>
+      <div class="it"><div class="k">↓ 下行</div><div class="vv" id="sRx">-</div></div>
+      <div class="it"><div class="k">↑ 上行</div><div class="vv" id="sTx">-</div></div>
+    </div>
+    <div class="samples" id="sSamples"></div>
+  </div>
+
+  <div class="card">
+    <h2>外观与行为</h2>
+    <div class="row">
+      <label>透明度</label>
+      <input type="range" id="opacity" min="8" max="100" step="1" value="78">
+      <span class="val" id="opacityVal">78%</span>
+    </div>
+    <div class="row">
+      <label>宽度</label>
+      <input type="range" id="width" min="220" max="1200" step="20" value="320">
+      <span class="val" id="widthVal">320</span>
+    </div>
+    <div class="row">
+      <label>高度</label>
+      <input type="range" id="height" min="130" max="760" step="10" value="180">
+      <span class="val" id="heightVal">180</span>
+    </div>
+    <div class="row">
+      <label></label>
+      <div class="checks">
+        <label><input type="checkbox" id="passthrough"> 鼠标穿透（点击穿透到下层窗口）</label>
+      </div>
+    </div>
+    <div class="hint">
+      大小与位置在被开启的叠加层窗口上直接拖动调整，改动会自动保存；
+      这里也可精确设定尺寸。快捷键：
+      <span class="kbd">Win+Alt+O</span> 开关 ·
+      <span class="kbd">Win+Alt+P</span> 切换鼠标穿透
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var last = null;
+
+  function fmtNum(v, dec) {
+    if (v == null || isNaN(v)) return "-";
+    return Number(v).toFixed(dec == null ? 1 : dec);
+  }
+
+  async function rpc(api, args) {
+    return await stbox.rpc("overlay", api, args || {});
+  }
+
+  function refreshState(s) {
+    if (!s) return;
+    var on = !!s.enabled;
+    $("pillTxt").className = "pill " + (on ? "on" : "off");
+    $("pillTxt").textContent = on ? "已开启" : "关闭";
+    $("btnToggle").textContent = on ? "⏸ 关闭叠加层" : "▶ 开启叠加层";
+    $("opacity").value = Math.round(Number(s.opacity) * 100);
+    $("opacityVal").textContent = $("opacity").value + "%";
+    $("width").value = s.w; $("widthVal").textContent = s.w;
+    $("height").value = s.h; $("heightVal").textContent = s.h;
+    $("passthrough").checked = !!s.passthrough;
+    if (s.last) {
+      last = s.last;
+      $("sCpu").textContent = fmtNum(last.cpu) + "%";
+      $("sMem").textContent = fmtNum(last.mem) + "%";
+      $("sDisk").textContent = fmtNum(last.disk) + "%";
+      $("sRx").textContent = fmtNum(last.netRx, 0) + " KB/s";
+      $("sTx").textContent = fmtNum(last.netTx, 0) + " KB/s";
+    }
+    $("sSamples").textContent = "已采样 " + s.sampling + " 个点（近 20s）";
+  }
+
+  async function refresh() {
+    try {
+      var r = await rpc("state", {});
+      if (r && r.ok) refreshState(r.data);
+    } catch (e) { /* ignore */ }
+  }
+
+  async function setAndRefresh(patch) {
+    try {
+      var r = await stbox.rpcWithApproval("overlay", "set", patch, {
+        onPending: function (req) {
+          // 默认弹窗由宿主外壳展示，这里无需额外处理
+          void req;
+        },
+      });
+      if (r && r.ok) refreshState(r.data);
+    } catch (e) {
+      alert("设置失败: " + e.message);
+    }
+  }
+
+  $("btnToggle").addEventListener("click", function () {
+    var on = $("pillTxt").classList.contains("on");
+    setAndRefresh({ enabled: !on });
+  });
+
+  $("btnReset").addEventListener("click", function () {
+    setAndRefresh({ x: null, y: null });
+  });
+
+  var deb = null;
+  function bindSlider(id, key, fmt) {
+    $(id).addEventListener("input", function () {
+      var v = Number($(id).value);
+      $(id + "Val").textContent = fmt(v);
+      clearTimeout(deb);
+      deb = setTimeout(function () {
+        var patch = {}; patch[key] = v;
+        setAndRefresh(patch);
+      }, 250);
+    });
+  }
+  bindSlider("opacity", "opacity", function (v) { return v + "%"; });
+  bindSlider("width", "w", function (v) { return String(v); });
+  bindSlider("height", "h", function (v) { return String(v); });
+
+  $("passthrough").addEventListener("change", function () {
+    setAndRefresh({ passthrough: $("passthrough").checked });
+  });
+
+  refresh();
+  setInterval(refresh, 1000);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "id": "overlay",
+  "name": "系统信息叠加层",
+  "version": "1.0.0",
+  "description": "半透明置顶叠加层：折线图实时展示近 20s 的 CPU / 内存 / 磁盘 / 网络变化；可调大小、位置、透明度，支持鼠标穿透",
+  "entry": "main.py",
+  "permission": "approval",
+  "sidebar": "系统",
+  "topbar": "overlay",
+  "icon": "",
+  "enabled": true,
+  "requires": []
+}

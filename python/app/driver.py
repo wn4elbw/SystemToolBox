@@ -86,6 +86,15 @@ class DriverState:
 kernel32 = ctypes.windll.kernel32
 advapi32 = ctypes.windll.advapi32
 
+# 部分 Python 发行版裁剪了 ctypes.use_last_error，导致 _last_error()
+# 恒为 0（真实错误码丢失）。这里直接调用 GetLastError 获取真实错误码。
+kernel32.GetLastError.restype = ctypes.c_ulong
+
+
+def _last_error() -> int:
+    """读取最近一次 Win32 调用的错误码（GetLastError）。"""
+    return int(kernel32.GetLastError())
+
 DWORD = wt.DWORD
 HANDLE = ctypes.c_void_p
 BOOL = ctypes.c_int
@@ -379,7 +388,7 @@ class WinService:
         self._schm = advapi32.OpenSCManagerW(None, None, SC_MANAGER_ALL_ACCESS)
         ok = bool(self._schm)
         self.open_error = "" if ok else (
-            f"OpenSCManager 失败(错误码 {ctypes.get_last_error()})")
+            f"OpenSCManager 失败(错误码 {_last_error()})")
         return ok
 
     def _open_service(self, access=SERVICE_ALL_ACCESS):
@@ -389,7 +398,7 @@ class WinService:
         ok = bool(self._svc)
         if not ok:
             self.open_error = (f"OpenService({self.name}) 失败"
-                               f"(错误码 {ctypes.get_last_error()})")
+                               f"(错误码 {_last_error()})")
         return ok
 
     def exists(self) -> bool:
@@ -405,20 +414,20 @@ class WinService:
         ok = bool(self._svc)
         if not ok:
             self.open_error = (f"CreateService({self.name}) 失败"
-                               f"(错误码 {ctypes.get_last_error()})")
+                               f"(错误码 {_last_error()})")
         return ok
 
     def start(self) -> str:
         """启动驱动。返回 'running' / 'already' / 'start_failed(错误码)'。"""
         st = SERVICE_STATUS()
         if not self._open_service(SERVICE_START | SERVICE_QUERY_STATUS):
-            return f"open_service_failed({ctypes.get_last_error()})"
+            return f"open_service_failed({_last_error()})"
         if advapi32.QueryServiceStatus(self._svc, ctypes.byref(st)) and \
                 st.dwCurrentState == SERVICE_RUNNING:
             return "already"
         if advapi32.StartServiceW(self._svc, 0, None):
             return "running"
-        err = ctypes.get_last_error()
+        err = _last_error()
         if err == ERROR_SERVICE_ALREADY_RUNNING:
             return "already"
         return f"start_failed({err})"
@@ -426,17 +435,17 @@ class WinService:
     def stop(self) -> bool:
         st = SERVICE_STATUS()
         if not self._open_service(SERVICE_STOP | SERVICE_QUERY_STATUS):
-            return ctypes.get_last_error() == ERROR_SERVICE_DOES_NOT_EXIST
+            return _last_error() == ERROR_SERVICE_DOES_NOT_EXIST
         if not advapi32.ControlService(self._svc, SERVICE_CONTROL_STOP,
                                        ctypes.byref(st)):
-            return ctypes.get_last_error() == ERROR_SERVICE_NOT_ACTIVE
+            return _last_error() == ERROR_SERVICE_NOT_ACTIVE
         return True
 
     def delete(self) -> bool:
         if not self._open_service():
-            return ctypes.get_last_error() == ERROR_SERVICE_DOES_NOT_EXIST
+            return _last_error() == ERROR_SERVICE_DOES_NOT_EXIST
         if not advapi32.DeleteService(self._svc):
-            return ctypes.get_last_error() == ERROR_SERVICE_MARKED_FOR_DELETE
+            return _last_error() == ERROR_SERVICE_MARKED_FOR_DELETE
         return True
 
     def status(self) -> dict:
@@ -531,7 +540,7 @@ class DriverManager:
             try:
                 if not svc.exists():
                     if not svc.create(str(self.sys_path)):
-                        err = ctypes.get_last_error()
+                        err = _last_error()
                         self.state = DriverState.ERROR
                         self.last_error = (f"创建服务失败({err})"
                                            f"，请确认已以管理员运行 · {svc.open_error}")
@@ -606,7 +615,7 @@ class DriverManager:
                 ctypes.byref(req), ctypes.sizeof(req), ctypes.byref(n), None)
             if not ok:
                 raise IOError(f"DeviceIoControl 失败，错误码 "
-                              f"{ctypes.get_last_error()}")
+                              f"{_last_error()}")
             return int(req.hdr.status)
 
     def info(self) -> bool:

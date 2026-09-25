@@ -22,6 +22,13 @@ kernel32 = ctypes.windll.kernel32
 ntdll = ctypes.windll.ntdll
 psapi = ctypes.windll.psapi
 
+# ctypes.windll 默认不捕获 last error（get_last_error 恒 0），直接读 GetLastError
+kernel32.GetLastError.restype = ctypes.c_ulong
+
+
+def _last_error() -> int:
+    return int(kernel32.GetLastError())
+
 HANDLE = ctypes.c_void_p
 DWORD = wt.DWORD
 
@@ -256,7 +263,7 @@ def register(api):
         try:
             if not kernel32.TerminateProcess(h, 0):
                 raise ApiError("io_error", f"结束进程失败 pid={pid}，"
-                               f"错误码 {ctypes.get_last_error()}")
+                               f"错误码 {_last_error()}")
         finally:
             kernel32.CloseHandle(h)
         with _sus_lock:
@@ -327,7 +334,7 @@ def register(api):
         try:
             if not kernel32.SetPriorityClass(h, value):
                 raise ApiError("io_error", f"设置优先级失败 pid={pid}，"
-                               f"错误码 {ctypes.get_last_error()}")
+                               f"错误码 {_last_error()}")
         finally:
             kernel32.CloseHandle(h)
         return {"pid": pid, "priority": name, "set": True}
@@ -352,7 +359,7 @@ def register(api):
         try:
             if not kernel32.SetProcessAffinityMask(h, mask):
                 raise ApiError("io_error", f"设置亲和性失败 pid={pid}，"
-                               f"错误码 {ctypes.get_last_error()}")
+                               f"错误码 {_last_error()}")
         finally:
             kernel32.CloseHandle(h)
         return {"pid": pid, "mask": mask, "set": True}

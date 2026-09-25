@@ -19,6 +19,13 @@ from app.api.router import ApiError
 user32 = ctypes.windll.user32
 kernel32 = ctypes.windll.kernel32
 
+# ctypes.windll 默认不捕获 last error（get_last_error 恒 0），直接读 GetLastError
+kernel32.GetLastError.restype = ctypes.c_ulong
+
+
+def _last_error() -> int:
+    return int(kernel32.GetLastError())
+
 HWND = wt.HWND
 DWORD = wt.DWORD
 LPARAM = wt.LPARAM

@@ -22,6 +22,15 @@ kernel32 = ctypes.windll.kernel32
 ntdll = ctypes.windll.ntdll
 advapi32 = ctypes.windll.advapi32
 
+# 部分 Python 发行版裁剪了 ctypes.use_last_error，导致 _last_error()
+# 恒为 0（真实错误码丢失）。这里直接调用 GetLastError 获取真实错误码。
+kernel32.GetLastError.restype = ctypes.c_ulong
+
+
+def _last_error() -> int:
+    """读取最近一次 Win32 调用的错误码（GetLastError）。"""
+    return int(kernel32.GetLastError())
+
 HANDLE = ctypes.c_void_p
 DWORD = wt.DWORD
 LPCWSTR = ctypes.c_wchar_p
@@ -156,7 +165,7 @@ def proc_kill_direct(pid):
     try:
         if not kernel32.TerminateProcess(h, 0):
             raise ApiError("io_error", f"结束进程失败 pid={pid}，"
-                           f"错误码 {ctypes.get_last_error()}")
+                           f"错误码 {_last_error()}")
         return {"pid": pid, "killed": True, "via": "win32"}
     finally:
         kernel32.CloseHandle(h)
@@ -192,7 +201,7 @@ def proc_start_direct(path, args="", workdir=""):
                                  ctypes.byref(si), ctypes.byref(pi))
     if not ok:
         raise ApiError("io_error", f"启动进程失败 {path}，"
-                       f"错误码 {ctypes.get_last_error()}")
+                       f"错误码 {_last_error()}")
     pid = pi.dwProcessId
     kernel32.CloseHandle(pi.hThread)
     kernel32.CloseHandle(pi.hProcess)
@@ -212,7 +221,7 @@ def mem_read_direct(pid, address, size):
         if not kernel32.ReadProcessMemory(h, ctypes.c_void_p(address), buf,
                                           size, ctypes.byref(nread)):
             raise ApiError("io_error", f"读内存失败 pid={pid} addr=0x{address:x}"
-                           f" 错误码 {ctypes.get_last_error()}")
+                           f" 错误码 {_last_error()}")
         return {"pid": pid, "address": address, "size": nread.value,
                 "data": buf.raw[:nread.value].hex()}
     finally:
@@ -235,7 +244,7 @@ def mem_write_direct(pid, address, data_hex):
         if not kernel32.WriteProcessMemory(h, ctypes.c_void_p(address),
                                            raw, len(raw), ctypes.byref(nw)):
             raise ApiError("io_error", f"写内存失败 pid={pid} addr=0x{address:x}"
-                           f" 错误码 {ctypes.get_last_error()}")
+                           f" 错误码 {_last_error()}")
         return {"pid": pid, "address": address, "written": nw.value}
     finally:
         kernel32.CloseHandle(h)

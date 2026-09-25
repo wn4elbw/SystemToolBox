@@ -14,6 +14,7 @@ const fs = require("fs");
 const { spawn, execFile, execFileSync } = require("child_process");
 const { startBackend } = require("./backend");
 const shortcuts = require("./shortcuts");
+const overlay = require("./overlay");
 
 const ROOT = path.resolve(__dirname, "..", "..", "..");
 const ICONS_DIR = path.join(__dirname, "..", "..", "icons");   // electron/icons
@@ -289,6 +290,9 @@ async function main() {
 
   // 全局快捷键：轮询后端生效列表并注册（权限门控在后端）
   shortcuts.start(apiBase, backend.token || "");
+
+  // 系统信息叠加层：轮询后端状态并管理透明置顶窗口
+  overlay.start(apiBase, backend.token || "");
 }
 
 app.whenReady().then(main).catch((err) => {
@@ -302,5 +306,6 @@ app.on("window-all-closed", () => {
 
 app.on("will-quit", () => {
   shortcuts.stop();
+  overlay.stop();
   if (backend) backend.kill();
 });
