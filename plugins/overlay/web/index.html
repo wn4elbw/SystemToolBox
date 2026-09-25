@@ -106,15 +106,21 @@
       <span class="val" id="heightVal">180</span>
     </div>
     <div class="row">
+      <label>刷新率</label>
+      <input type="range" id="refreshMs" min="200" max="2000" step="100" value="1000">
+      <span class="val" id="refreshMsVal">1000ms</span>
+    </div>
+    <div class="row">
       <label></label>
       <div class="checks">
         <label><input type="checkbox" id="passthrough"> 鼠标穿透（点击穿透到下层窗口）</label>
       </div>
     </div>
     <div class="hint">
-      大小与位置在被开启的叠加层窗口上直接拖动调整，改动会自动保存；
-      这里也可精确设定尺寸。快捷键：
-      <span class="kbd">Win+Alt+O</span> 开关 ·
+      大小与位置在被开启的叠加层窗口上直接拖动调整；此处可精确设定尺寸与
+      刷新率。所有更改（开关/透明度/尺寸/位置/刷新率/穿透）都会保存到
+      <span class="kbd">python/data/overlay.json</span>，下次启动自动恢复。
+      快捷键：<span class="kbd">Win+Alt+O</span> 开关 ·
       <span class="kbd">Win+Alt+P</span> 切换鼠标穿透
     </div>
   </div>
@@ -146,6 +152,8 @@
     $("width").value = s.w; $("widthVal").textContent = s.w;
     $("height").value = s.h; $("heightVal").textContent = s.h;
     $("passthrough").checked = !!s.passthrough;
+    $("refreshMs").value = s.refreshMs || 1000;
+    $("refreshMsVal").textContent = (s.refreshMs || 1000) + "ms";
     if (s.last) {
       last = s.last;
       $("sCpu").textContent = fmtNum(last.cpu) + "%";
@@ -166,13 +174,10 @@
 
   async function setAndRefresh(patch) {
     try {
-      var r = await stbox.rpcWithApproval("overlay", "set", patch, {
-        onPending: function (req) {
-          // 默认弹窗由宿主外壳展示，这里无需额外处理
-          void req;
-        },
-      });
+      // 插件权限为 full：set 直接执行，无需审批（审批会让滑块卡顿）
+      var r = await rpc("set", patch);
       if (r && r.ok) refreshState(r.data);
+      else if (r && r.error) alert("设置失败: " + r.error.message);
     } catch (e) {
       alert("设置失败: " + e.message);
     }
@@ -188,20 +193,25 @@
   });
 
   var deb = null;
-  function bindSlider(id, key, fmt) {
+  function bindSlider(id, key, fmt, conv) {
     $(id).addEventListener("input", function () {
       var v = Number($(id).value);
       $(id + "Val").textContent = fmt(v);
       clearTimeout(deb);
       deb = setTimeout(function () {
-        var patch = {}; patch[key] = v;
+        var patch = {};
+        patch[key] = conv ? conv(v) : v;
         setAndRefresh(patch);
       }, 250);
     });
   }
-  bindSlider("opacity", "opacity", function (v) { return v + "%"; });
+  // 注意：滑块值域是百分比(8-100)，传给后端前 opacity 需除以 100
+  // （后端范围 0.08-1.0；直接传 50 会被 clamp 成 1.0=完全不透明）
+  bindSlider("opacity", "opacity", function (v) { return v + "%"; },
+             function (v) { return v / 100; });
   bindSlider("width", "w", function (v) { return String(v); });
   bindSlider("height", "h", function (v) { return String(v); });
+  bindSlider("refreshMs", "refreshMs", function (v) { return v + "ms"; });
 
   $("passthrough").addEventListener("change", function () {
     setAndRefresh({ passthrough: $("passthrough").checked });

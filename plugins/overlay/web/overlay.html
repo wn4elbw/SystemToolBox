@@ -8,9 +8,9 @@
   html, body {
     margin: 0; padding: 0; background: transparent;
     overflow: hidden; user-select: none;
-    font: 12px/1.4 "Segoe UI", "Microsoft YaHei", sans-serif;
+    font: 11px/1.3 "Segoe UI", "Microsoft YaHei", sans-serif;
   }
-  /* 半透明底板：背景透明度随后端 state.opacity 动态更新（#overlay 的 --bg-a） */
+  /* 半透明底板：背景透明度随后端 state.opacity 动态更新（--bg-a） */
   .overlay {
     position: fixed; inset: 0;
     border-radius: 10px; overflow: hidden;
@@ -43,17 +43,28 @@
   .head button:hover { background:rgba(255,255,255,0.22); }
   .head button.close:hover { background:rgba(239,90,90,.75); color:#fff; }
 
-  .chart-wrap { flex:1; position:relative; min-height:0; }
-  canvas { display:block; width:100%; height:100%; }
-
-  .legend {
-    flex:0 0 auto; display:flex; flex-wrap:wrap; gap:2px 10px;
-    padding:3px 8px 5px; font-size:10.5px; border-top:1px solid rgba(255,255,255,0.07);
+  /* 每指标独立小面板：grid 2 列，最后一行下行/上行各占 1 格 */
+  .grid {
+    flex:1; min-height:0; display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px; padding: 2px;
+    grid-auto-rows: 1fr;
   }
-  .legend span { white-space:nowrap; }
-  .sw { display:inline-block; width:8px; height:8px; border-radius:2px;
-        margin-right:4px; vertical-align:-1px; }
-  .v { font-weight:600; margin-left:2px; color:#fff; }
+  .cell {
+    position: relative; min-width:0; min-height:0;
+    border-radius: 5px; overflow: hidden;
+    background: rgba(255,255,255,0.03);
+  }
+  .cell .cap {
+    position: absolute; left:5px; top:2px; z-index:2; pointer-events:none;
+    font-size:10px; color: rgba(255,255,255,0.75);
+    display:flex; gap:6px; align-items:baseline;
+    white-space:nowrap; max-width:92%; overflow:hidden;
+  }
+  .cell .cap .n { font-weight:600; }
+  .cell .cap .v { font-weight:700; font-size:11px;
+                  font-variant-numeric:tabular-nums; }
+  canvas { position:absolute; inset:0; width:100%; height:100%; }
 </style>
 </head>
 <body>
@@ -65,103 +76,128 @@
     <span class="badge" id="passBadge">鼠标穿透</span>
     <button id="btnClose" title="关闭叠加层">✕</button>
   </div>
-  <div class="chart-wrap"><canvas id="cv"></canvas></div>
-  <div class="legend" id="legend"></div>
+  <div class="grid" id="grid"></div>
 </div>
 
 <script>
 (function () {
   "use strict";
-  var cv = document.getElementById("cv");
-  var ctx = cv.getContext("2d");
   var ov = document.getElementById("ov");
-  var legend = document.getElementById("legend");
-  var SAMPLES = 20;
 
-  var SERIES = [
-    { key: "cpu",    label: "CPU",   color: "#f0533a", unit: "%" },
-    { key: "mem",    label: "内存",  color: "#43d17e", unit: "%" },
-    { key: "disk",   label: "磁盘",  color: "#4f8cff", unit: "%" },
-    { key: "netRx",  label: "↓" ,    color: "#b07cf0", unit: "KB/s", net: true },
-    { key: "netTx",  label: "↑",     color: "#f0b34b", unit: "KB/s", net: true },
+  // 每指标独立面板：key 对应 history 采样字段
+  var DEFS = [
+    { key: "cpu",   label: "CPU",  color: "#f0533a", unit: "%",    pct: true },
+    { key: "mem",   label: "内存", color: "#43d17e", unit: "%",    pct: true },
+    { key: "disk",  label: "磁盘", color: "#4f8cff", unit: "%",    pct: true },
+    { key: "netRx", label: "↓ 下行", color: "#b07cf0", unit: "KB/s", pct: false },
+    { key: "netTx", label: "↑ 上行", color: "#f0b34b", unit: "KB/s", pct: false },
   ];
+  var cells = [];       // {key,label,color,unit,pct, cv, ctx, vEl}
+  var refreshMs = 1000; // 从后端 state 读取的自定义刷新率
+  var samples = [];
 
-  function resize() {
-    var r = cv.parentNode.getBoundingClientRect();
-    if (cv.width !== Math.floor(r.width) || cv.height !== Math.floor(r.height)) {
-      var dpr = window.devicePixelRatio || 1;
-      cv.width = Math.max(10, Math.floor(r.width * dpr));
-      cv.height = Math.max(10, Math.floor(r.height * dpr));
-      cv.style.width = r.width + "px";
-      cv.style.height = r.height + "px";
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // 构建面板
+  var grid = document.getElementById("grid");
+  DEFS.forEach(function (d) {
+    var cell = document.createElement("div");
+    cell.className = "cell";
+    var cap = document.createElement("div");
+    cap.className = "cap";
+    cap.innerHTML = '<span class="n" style="color:' + d.color + '">' +
+      d.label + '</span><span class="v" id="val-' + d.key + '">-</span>';
+    var cv = document.createElement("canvas");
+    cell.appendChild(cap);
+    cell.appendChild(cv);
+    grid.appendChild(cell);
+    cells.push({
+      key: d.key, label: d.label, color: d.color, unit: d.unit, pct: d.pct,
+      cv: cv, ctx: cv.getContext("2d"),
+      vEl: cap.querySelector(".v"),
+      net: !d.pct,
+    });
+  });
+
+  function resizeCell(c) {
+    var r = c.cv.parentNode.getBoundingClientRect();
+    var dpr = window.devicePixelRatio || 1;
+    var w = Math.max(10, Math.floor(r.width * dpr));
+    var h = Math.max(10, Math.floor(r.height * dpr));
+    if (c.cv.width !== w || c.cv.height !== h) {
+      c.cv.width = w; c.cv.height = h;
+      c.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
   }
 
-  function draw(samples) {
-    resize();
-    var W = cv.width / (window.devicePixelRatio || 1);
-    var H = cv.height / (window.devicePixelRatio || 1);
-    ctx.clearRect(0, 0, W, H);
-    if (W < 20 || H < 20) return;
+  function draw() {
+    var n = samples.length;
+    var t0 = n ? samples[n - 1].t - 20 : 0;   // 近 20s 窗口
+    cells.forEach(function (c) {
+      resizeCell(c);
+      var cv = c.cv, ctx = c.ctx;
+      var W = cv.width / (window.devicePixelRatio || 1);
+      var H = cv.height / (window.devicePixelRatio || 1);
+      ctx.clearRect(0, 0, W, H);
+      if (W < 16 || H < 12) return;
+      var pad = 2;
+      var plotW = W - pad * 2, plotH = H - pad * 2;
 
-    var padL = 30, padR = 6, padT = 8, padB = 6;
-    var plotW = W - padL - padR, plotH = H - padT - padB;
+      // 本面板序列（20s 窗口内）
+      var pts = [], i;
+      for (i = 0; i < n; i++) {
+        var s = samples[i];
+        if (s.t >= t0) pts.push(s[c.key]);
+      }
+      if (pts.length < 2) return;
 
-    // 百分比轴 0-100
-    ctx.strokeStyle = "rgba(255,255,255,0.12)";
-    ctx.fillStyle = "rgba(255,255,255,0.45)";
-    ctx.font = "9px Segoe UI";
-    ctx.lineWidth = 1;
-    for (var g = 0; g <= 4; g++) {
-      var y = padT + plotH * g / 4;
-      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + plotW, y);
-      ctx.stroke();
-      ctx.fillText(String(100 - g * 25), 2, y + 3);
-    }
+      // y 轴：百分比面板固定 0-100；网络面板动态上限
+      var yMax = c.pct ? 100 : 1;
+      if (!c.pct) {
+        for (i = 0; i < pts.length; i++) yMax = Math.max(yMax, pts[i]);
+        yMax = yMax * 1.15;
+      }
+      var yAt = function (v) {
+        return pad + plotH * (1 - Math.min(yMax, Math.max(0, v)) / yMax);
+      };
+      var xAt = function (idx) {
+        return pad + plotW * idx / (pts.length - 1);
+      };
 
-    var n = Math.min(SAMPLES, samples.length);
-    if (n < 2) return;
-    // 取窗口内最近 n 个点
-    var list = samples.slice(samples.length - n);
+      // 网络面板虚线网格（动态），百分比面板 25/50/75 淡线
+      ctx.lineWidth = 1;
+      if (c.pct) {
+        ctx.strokeStyle = "rgba(255,255,255,0.07)";
+        [25, 50, 75].forEach(function (g) {
+          var y = yAt(g);
+          ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(pad + plotW, y);
+          ctx.stroke();
+        });
+      } else {
+        ctx.strokeStyle = "rgba(255,255,255,0.07)";
+        [0.25, 0.5, 0.75].forEach(function (g) {
+          var y = pad + plotH * (1 - g);
+          ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(pad + plotW, y);
+          ctx.stroke();
+        });
+      }
 
-    // 网络动态上限（KB/s）
-    var netMax = 1;
-    list.forEach(function (s) { netMax = Math.max(netMax, s.netRx, s.netTx); });
-    netMax = Math.max(1, netMax * 1.15);
-
-    var xAt = function (i) { return padL + plotW * i / (n - 1); };
-    var yPct = function (v) { return padT + plotH * (1 - Math.min(100, Math.max(0, v)) / 100); };
-    var yNet = function (v) { return padT + plotH * (1 - Math.min(netMax, Math.max(0, v)) / netMax); };
-
-    SERIES.forEach(function (s) {
-      ctx.strokeStyle = s.color;
-      ctx.lineWidth = 1.6;
+      ctx.strokeStyle = c.color;
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
-      for (var i = 0; i < n; i++) {
-        var y = s.net ? yNet(list[i][s.key]) : yPct(list[i][s.key]);
-        if (i === 0) ctx.moveTo(xAt(i), y);
-        else ctx.lineTo(xAt(i), y);
+      for (i = 0; i < pts.length; i++) {
+        if (i === 0) ctx.moveTo(xAt(i), yAt(pts[i]));
+        else ctx.lineTo(xAt(i), yAt(pts[i]));
       }
       ctx.stroke();
-      // 末点圆点
-      var ly = s.net ? yNet(list[n - 1][s.key]) : yPct(list[n - 1][s.key]);
-      ctx.fillStyle = s.color;
-      ctx.beginPath(); ctx.arc(xAt(n - 1), ly, 2, 0, 6.2832); ctx.fill();
-    });
 
-    // 图例 + 当前值
-    var last = list[n - 1];
-    legend.innerHTML = "";
-    SERIES.forEach(function (s) {
-      var v = last[s.key];
-      var txt = (s.net ? v.toFixed(0) : v.toFixed(1)) + " " + s.unit;
-      var sp = document.createElement("span");
-      sp.innerHTML = '<span class="sw" style="background:' + s.color + '"></span>' +
-                     s.label + '<span class="v">' + txt + "</span>";
-      legend.appendChild(sp);
+      // 末点圆点 + 当前值
+      ctx.fillStyle = c.color;
+      ctx.beginPath();
+      ctx.arc(xAt(pts.length - 1), yAt(pts[pts.length - 1]), 2, 0, 6.2832);
+      ctx.fill();
+      var lastV = pts[pts.length - 1];
+      c.vEl.textContent = (c.pct ? lastV.toFixed(1) : lastV.toFixed(0)) +
+                          " " + c.unit;
     });
-    document.title = "CPU " + last.cpu + "% | 内存 " + last.mem + "%";
   }
 
   function applyState(s) {
@@ -170,27 +206,54 @@
     document.documentElement.style.setProperty("--bg-a", String(a));
     var b = document.getElementById("passBadge");
     if (s.passthrough) b.classList.add("on"); else b.classList.remove("on");
+    if (s.refreshMs && s.refreshMs >= 100 && s.refreshMs <= 20000) {
+      refreshMs = s.refreshMs;
+    }
   }
 
-  async function tick() {
-    try {
-      var h = await stbox.rpc("overlay", "history", {});
-      if (h && h.ok && Array.isArray(h.data.samples)) draw(h.data.samples);
-    } catch (e) { /* ignore */ }
+  // 主进程下推通道（preload 注入）：滑块拖动时透明度即时生效，无需等轮询
+  if (window.stbOv && window.stbOv.onCfg) {
+    window.stbOv.onCfg(function (cfg) {
+      if (cfg && cfg.opacity != null) {
+        document.documentElement.style.setProperty(
+          "--bg-a", String(Math.max(0.08, Math.min(1, Number(cfg.opacity)))));
+      }
+    });
+  }
+
+  async function pollState() {
     try {
       var st = await stbox.rpc("overlay", "state", {});
       if (st && st.ok) applyState(st.data);
     } catch (e) { /* ignore */ }
   }
 
+  async function pollHistory() {
+    try {
+      var h = await stbox.rpc("overlay", "history", {});
+      if (h && h.ok && Array.isArray(h.data.samples)) {
+        samples = h.data.samples;
+        draw();
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  function schedule() {
+    setTimeout(function () {
+      pollState();
+      pollHistory();
+      schedule();
+    }, refreshMs);
+  }
+
   document.getElementById("btnClose").addEventListener("click", function () {
     stbox.rpc("overlay", "set", { enabled: false }).catch(function () {});
   });
 
-  // 首次加载即绘制，随后每秒刷新（近 20s 数据由后端环形缓冲提供）
-  tick();
-  setInterval(tick, 1000);
-  window.addEventListener("resize", function () { resize(); draw([]); });
+  window.addEventListener("resize", function () { draw(); });
+  pollState();
+  pollHistory();
+  schedule();          // 以自定义刷新率持续更新
 })();
 </script>
 </body>

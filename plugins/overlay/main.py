@@ -84,7 +84,8 @@ MIB_IF_OPER_STATUS_UP = 1
 _cpu_prev = None          # (idle, kern, user) 上一采样
 _net_prev = None          # (inOctets, outOctets, t)
 _lock = threading.RLock()
-_samples = deque(maxlen=20)      # [{t, cpu, mem, disk, netRx, netTx}]
+# 环形缓冲：刷新率低至 200ms 时 20s ≈ 100 点，取上限 200 点覆盖
+_samples = deque(maxlen=200)   # [{t, cpu, mem, disk, netRx, netTx}]
 _started_at = time.time()
 _sampler = None
 _sampling = True
@@ -193,7 +194,9 @@ def _sample_once():
 def _sampler_loop():
     while _sampling:
         _sample_once()
-        time.sleep(1.0)
+        with _lock:
+            delay = float(_cfg.get("refreshMs") or 1000) / 1000.0
+        time.sleep(max(0.05, min(10.0, delay)))
 
 
 # ---------------- 状态与持久化 ----------------
@@ -205,8 +208,9 @@ _DEFAULTS = {
     "opacity": 0.78,
     "x": None,          # None = 交给 Electron 默认（右上角）
     "y": None,
-    "w": 320,
-    "h": 180,
+    "w": 460,
+    "h": 260,
+    "refreshMs": 1000,   # 采样/刷新率（200-5000ms，持久化）
     "passthrough": False,
 }
 
@@ -242,6 +246,7 @@ def _state_dict():
             "opacity": float(_cfg["opacity"]),
             "x": _cfg["x"], "y": _cfg["y"],
             "w": int(_cfg["w"]), "h": int(_cfg["h"]),
+            "refreshMs": int(_cfg.get("refreshMs") or 1000),
             "passthrough": bool(_cfg["passthrough"]),
             "sampling": len(_samples),
             "last": last,
@@ -267,6 +272,8 @@ def _apply_set(args):
             _cfg["w"] = int(_clamp(args["w"], 180, 1600))
         if args.get("h") is not None:
             _cfg["h"] = int(_clamp(args["h"], 90, 1000))
+        if args.get("refreshMs") is not None:
+            _cfg["refreshMs"] = int(_clamp(args["refreshMs"], 200, 5000))
         # 位置显式置 None 表示自动（右上角）
         if "x" in args:
             _cfg["x"] = None if args["x"] is None else int(args["x"])

@@ -21,6 +21,7 @@ let apiBase = "";
 let token = "";
 let win = null;
 let lastSig = "";        // "x,y,w,h,pass" 签名，避免重复 setBounds
+let lastOpacity = null;  // 上次下推的透明度，用于检测变化
 
 function stateUrl() {
   return `${apiBase}/api/rpc`;
@@ -77,6 +78,15 @@ function applyGeometry(s) {
   try {
     win.setIgnoreMouseEvents(Boolean(s.passthrough), { forward: true });
   } catch (e) { /* ignore */ }
+
+  // 透明度变化 -> 立即下推页面（页面据此更新半透明背景，实时生效）
+  const op = Number(s.opacity);
+  if (!Number.isNaN(op) && op !== lastOpacity) {
+    lastOpacity = op;
+    try {
+      win.webContents.send("overlay:cfg", { opacity: op });
+    } catch (e) { /* ignore */ }
+  }
 }
 
 function destroy() {
@@ -117,6 +127,7 @@ async function sync() {
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: false,
+        preload: require("path").join(__dirname, "..", "preload", "overlay-preload.js"),
       },
     });
     win.setAlwaysOnTop(true, "screen-saver");
